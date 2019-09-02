@@ -250,6 +250,10 @@ class TestPositionBook(unittest.TestCase):
         self.assertEqual(len(list1), 2)
         self.assertEqual(len(list2), 2)
 
-        # should be len 2
-        list3 = book2.get_cond(cond=lambda pos: pos.is_secured and pos.pos_amount >= 2)
+        # should be len 1
+        list3 = book2.get_cond(cond=lambda pos: pos.need_secure and pos.target_price > 200)
         self.assertEqual(len(list3), 1)
+
+        # should be 0
+        list4 = book2.get_cond(cond=lambda pos: not pos.need_secure and pos.target_price > 200)
+        self.assertEqual(len(list4), 0)
