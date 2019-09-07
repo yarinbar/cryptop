@@ -176,7 +176,8 @@ class PositionBook(object):
 
         return 0
 
-    def _close_list(self, pos_list):
+    @staticmethod
+    def _close_list(pos_list):
 
         if type(pos_list) is not list:
             return -1
@@ -214,7 +215,7 @@ class PositionBook(object):
 
         return sum
 
-    def get_cond(self, cond, status=None):
+    def get_cond_positions(self, cond, status=None):
 
         position_base = {}
         cond_positions = []
@@ -240,8 +241,8 @@ class PositionBook(object):
         :return: 0 on success -1 on failure
         """
 
-        open_pos_list = self.get_cond(cond=cond, status=OPEN)
-        wait_open_pos_list = self.get_cond(cond=cond, status=WAIT_OPEN)
+        open_pos_list = self.get_cond_positions(cond=cond, status=OPEN)
+        wait_open_pos_list = self.get_cond_positions(cond=cond, status=WAIT_OPEN)
 
         pos_list = open_pos_list.extend(wait_open_pos_list)
 

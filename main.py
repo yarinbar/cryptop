@@ -137,11 +137,15 @@ if __name__ == '__main__':
     # i, j = np.where(order_hist == 6)
     # print(i[0], j[0])
 
-    dict1 = {'yarin': {1: 2, 2: 3},
-             'gal': {1: 2, 2: 3},
-             'eden': {1: 2, 2: 3}}
+    # dict1 = {'yarin': {1: 2, 2: 3},
+    #          'gal': {1: 2, 2: 3},
+    #          'eden': {1: 2, 2: 3}}
+    #
+    # print(get_size(dict1))
 
-    print(get_size(dict1))
+    d = {'open': dict}
+
+    print(type(d['open']))
 
 
 

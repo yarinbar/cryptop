@@ -192,8 +192,8 @@ class TestPositionBook(unittest.TestCase):
 
         book, book_size = self.make_book(size=1500)
 
-        cond_positions1 = book.get_cond(cond1)
-        cond_positions2 = book.get_cond(cond2)
+        cond_positions1 = book.get_cond_positions(cond1)
+        cond_positions2 = book.get_cond_positions(cond2)
 
         for position in cond_positions1:
             self.assertGreater(position.risk_factor, risk_tol)
@@ -203,8 +203,8 @@ class TestPositionBook(unittest.TestCase):
 
         cond3 = lambda pos: pos.risk_factor < risk_tol and pos.status == OPEN
 
-        cond_positions3 = book.get_cond(cond3, OPEN)
-        cond_positions4 = book.get_cond(cond3)
+        cond_positions3 = book.get_cond_positions(cond3, OPEN)
+        cond_positions4 = book.get_cond_positions(cond3)
 
         self.assertEqual(cond_positions3, cond_positions4)
 
@@ -244,16 +244,16 @@ class TestPositionBook(unittest.TestCase):
                            'amount': 0.7})
 
         # should be len 2
-        list1 = book2.get_cond(cond=lambda pos: isinstance(pos, Short))
-        list2 = book2.get_cond(cond=lambda pos: pos['open']['price'] > 140)
+        list1 = book2.get_cond_positions(cond=lambda pos: isinstance(pos, Short))
+        list2 = book2.get_cond_positions(cond=lambda pos: pos['open']['price'] > 140)
 
         self.assertEqual(len(list1), 2)
         self.assertEqual(len(list2), 2)
 
         # should be len 1
-        list3 = book2.get_cond(cond=lambda pos: pos.need_secure and pos.target_price > 200)
+        list3 = book2.get_cond_positions(cond=lambda pos: pos.need_secure and pos.target_price > 200)
         self.assertEqual(len(list3), 1)
 
         # should be 0
-        list4 = book2.get_cond(cond=lambda pos: not pos.need_secure and pos.target_price > 200)
+        list4 = book2.get_cond_positions(cond=lambda pos: not pos.need_secure and pos.target_price > 200)
         self.assertEqual(len(list4), 0)
