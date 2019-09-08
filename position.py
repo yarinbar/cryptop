@@ -95,11 +95,12 @@ class Position:
         if MODE == TEST:
             if self.status == WAIT_OPEN and np.random.randint(0, 100) % 10 == 0:
                 self.pos_amount = self._orders['open']['amount']
-
-                if self.need_secure and not self.is_secured:
-                    self.secure()
-
                 self.status = OPEN
+
+            if self.status == OPEN and self.need_secure and not self.is_secured:
+                self.secure()
+
+
 
             # TODO - make a part to simulate hitting stop_loss of take_profit
             return 0
@@ -136,7 +137,7 @@ class Position:
             # checking if closed the amount that opened
             if take_profit_fill + stop_loss_fill == self.pos_amount:
                 # TODO - change None to something else
-                self._close_order = None
+                self._orders['close'] = None
                 self.expose()
                 self.status = CLOSED
 
@@ -222,18 +223,25 @@ class Position:
 
     def secure(self, take_profit=None, stop_loss=None):
         if self.is_secured:
-            self.expose()
+            self._expose()
 
         self.need_secure = True
 
-    def expose(self):
+        if take_profit is not None and stop_loss is not None:
+            self.set_exit_points(take_profit=take_profit, stop_loss=stop_loss)
+
+    def _expose(self):
+
+        """
+        calling to this method will not change the need_secured attr, because we call it for the sake of exposing the position
+        it's not a user made decision
+        :return: 0 on success -1 on failure
+        """
 
         if not self.is_secured:
-            self.need_secure = False
             self.is_secured = False
             return 0
 
-        self.need_secure = False
 
         if MODE == TEST:
             self._take_profit_order = None
@@ -289,6 +297,18 @@ class Position:
         # shouldn't get here
         return -1
 
+
+    def expose(self):
+
+        """
+        called only by user, thus when called the need_secure flag is off
+        :return:
+        """
+
+        self.need_secure = False
+        return self._expose()
+
+
     def get_profit_percent(self, current_price=None):
         """
         :param current_price: (OPTIONAL) for seeing what the profit would have been now
@@ -307,10 +327,11 @@ class Position:
         open_fee = self._orders['open']['fee']['cost']
         close_fee = 0
 
-        if price is not None:
-            close_fee = TAKER_FEE * price * self._orders['open']['amount']
-        elif len(self._orders['close']) > 0:
+        if self.status == CLOSED:
             close_fee = self._orders['close']['fee']['cost']
+        elif price is not None:
+            close_fee = TAKER_FEE * price * self._orders['open']['amount']
+
         else:
             raise Exception("something went wrong with calculating fee")
 
@@ -340,8 +361,8 @@ class Position:
         if self._orders['open']:
             orders_ids.append(self._orders['open']['id'])
 
-        if self._close_order:
-            orders_ids.append(self._close_order['id'])
+        if self._orders['close']:
+            orders_ids.append(self._orders['close']['id'])
 
         if self.is_secured:
             assert self._take_profit_order and self._stop_loss_order
@@ -356,15 +377,10 @@ class Position:
 
     def __getitem__(self, order):
 
-        orders = {'open': self._orders['open'],
-                  'close': self._close_order,
-                  'take profit': self._take_profit_order,
-                  'stop loss': self._stop_loss_order}
+        if order not in self._orders:
+            return self._orders.copy()
 
-        if order == 'all':
-            return orders
-
-        return orders[order]
+        return self._orders[order]
 
 
 class Long(Position):
@@ -400,41 +416,41 @@ class Long(Position):
                 return -1
             return 0
 
-        if self._orders['open'] is None or self.status != OPEN:
+        if self._orders['open'] == {} or self.status != OPEN:
             return -1
 
         if MODE == TEST:
-            assert close_params['test']
-            assert close_params['limit']
+            if 'limit' not in close_params:
+                raise KeyError('in testing you have to specify closing price')
 
             close_params['amount'] = self._orders['open']['amount']
             close_params['type'] = 'market'
             close_params['side'] = 'sell'
             close_params['symbol'] = self.symbol
 
-            self._close_order = super().test_order(params=close_params)
-            if self.expose() == 0:
+            self._orders['close'] = super().test_order(params=close_params)
+            if self._expose() == 0:
                 self.status = CLOSED
                 return 0
             return -1
 
-        self._close_order = binance.create_market_sell_order(symbol=self.symbol, amount=self._orders['open']['amount'])
+        self._orders['close'] = binance.create_market_sell_order(symbol=self.symbol, amount=self._orders['open']['amount'])
         self.status = WAIT_CLOSE
 
         time.sleep(0.5)
 
         # update order
-        self._close_order = binance.fetch_order(id=self._close_order['id'], symbol=self.symbol)
+        self._orders['close'] = binance.fetch_order(id=self._orders['close']['id'], symbol=self.symbol)
 
-        if self._close_order['status'] == 'open':
+        if self._orders['close']['status'] == 'open':
             self.status = WAIT_CLOSE
 
-        if self._close_order['status'] == 'canceled':
+        if self._orders['close']['status'] == 'canceled':
             assert self._take_profit_order is None and self._stop_loss_order is None
             self.status = CANCELED
 
-        if self._close_order['status'] == 'close':
-            if self.expose() == 0:
+        if self._orders['close']['status'] == 'close':
+            if self._expose() == 0:
                 self.status = CLOSED
             else:
                 self.status = ERROR
@@ -456,20 +472,20 @@ class Long(Position):
                                                                        'limit': t_stop_loss,
                                                                        'amount': t_amount})
 
-        if len(self._orders['open']) == 0 or self.status != OPEN:
-            raise Exception("Can't secure un-opened positions")
-
-        if not stop_loss <= self._orders['open']['limit'] <= take_profit:
-            raise ValueError
-
         if take_profit is None or stop_loss is None:
             take_profit = self.params['take profit']
             stop_loss = self.params['stop loss']
 
-        if take_profit <= 0 or stop_loss <= 0:
-            raise ValueError
+        if self._orders['open'] == {} or self.status != OPEN:
+            return -1
 
-        super().secure()
+        if not stop_loss <= self._orders['open']['limit'] <= take_profit:
+            return -1
+
+        if take_profit <= 0 or stop_loss <= 0:
+            return -1
+
+        super().secure(take_profit=take_profit, stop_loss=stop_loss)
 
         if MODE == TEST:
             protect_test(position=self, t_amount=self.pos_amount, t_take_profit=take_profit, t_stop_loss=stop_loss)
@@ -527,19 +543,22 @@ class Long(Position):
 
         if MODE == TEST:
 
-            if self.status == WAIT_OPEN and self._orders['open'] and self._close_order is None:
-                self.expose()
+            if self.status == WAIT_OPEN and self._orders['open'] != {}:
+                if self._expose() != 0:
+                    self.status = OPEN
+                    return -1
+
                 self.status = CANCELED
                 return 0
 
             return -1
 
-        # if we are canceling an un-open order we are doing something wrong
-        if self.status != WAIT_OPEN and self._orders['open']['fill'] == 0:
+        # TODO - improve it so if a part of the order was filled we could still cancel
+        if self.status != WAIT_OPEN or self._orders['open']['fill'] != 0:
             return -1
 
         try:
-            if self.expose() != 0:
+            if self._expose() != 0:
                 self.status = OPEN
                 return -1
 
@@ -568,8 +587,6 @@ class Long(Position):
             open_cost = self._orders['open']['cost']
             return current_price - open_cost
 
-        assert self._close_order is not None
-
         open_cost = self._orders['open']['cost']
         closing_profit = self._orders['close']['cost']
 
@@ -589,7 +606,7 @@ class Long(Position):
             open_cost = self._orders['open']['cost']
             return 100 * ((current_price - open_cost) / open_cost)
 
-        assert self._close_order is not None
+        assert self._orders['close'] is not None
 
         open_cost = self._orders['open']['cost']
         close_price = self._orders['close']['cost']
@@ -604,7 +621,7 @@ class Long(Position):
         if not stop_loss < self.params['limit'] < take_profit:
             return -1
 
-        if self.expose() != 0:
+        if self._expose() != 0:
             return -1
 
         self.params['take profit'] = take_profit
@@ -612,9 +629,6 @@ class Long(Position):
 
         self.take_profit_price = take_profit
         self.stop_loss_price = stop_loss
-
-        if self.secure(take_profit=take_profit, stop_loss=stop_loss) != 0:
-            return -1
 
         return 0
 
@@ -782,29 +796,29 @@ class Short(Position):
             params['side'] = 'buy'
             params['symbol'] = self.symbol
 
-            self._close_order = super().test_order(params=params)
-            if self.expose() == 0:
+            self._orders['close'] = super().test_order(params=params)
+            if self._expose() == 0:
                 self.status = CLOSED
                 return 0
             return -1
 
-        self._close_order = binance.create_market_buy_order(symbol=self.symbol, amount=self._orders['open']['amount'])
+        self._orders['close'] = binance.create_market_buy_order(symbol=self.symbol, amount=self._orders['open']['amount'])
         self.status = WAIT_CLOSE
 
         time.sleep(0.5)
 
         # update order
-        self._close_order = binance.fetch_order(id=self._close_order['id'], symbol=self.symbol)
+        self._orders['close'] = binance.fetch_order(id=self._orders['close']['id'], symbol=self.symbol)
 
-        if self._close_order['status'] == 'open':
+        if self._orders['close']['status'] == 'open':
             self.status = WAIT_CLOSE
 
-        if self._close_order['status'] == 'canceled':
+        if self._orders['close']['status'] == 'canceled':
             assert self._take_profit_order is None and self._stop_loss_order is None
             self.status = CANCELED
 
-        if self._close_order['status'] == 'close':
-            if self.expose() == 0:
+        if self._orders['close']['status'] == 'close':
+            if self._expose() == 0:
                 self.status = CLOSED
             else:
                 self.status = ERROR
@@ -882,17 +896,17 @@ class Short(Position):
 
         if MODE == TEST:
 
-            if self.status == WAIT_OPEN and self._orders['open'] and self._close_order is None:
-                self.expose()
+            if self.status == WAIT_OPEN and self._orders['open'] and self._orders['close'] is None:
+                self._expose()
                 self.status = CANCELED
                 return 0
 
             return -1
 
-        if self.status == WAIT_OPEN and self._orders['open'] and self._close_order is None:
+        if self.status == WAIT_OPEN and self._orders['open'] and self._orders['close'] is None:
 
             try:
-                if self.expose() != 0:
+                if self._expose() != 0:
                     self.status = ERROR
                     return -1
 
@@ -921,10 +935,10 @@ class Short(Position):
             open_cost = self._orders['open']['cost']
             return current_price - open_cost
 
-        assert self._close_order is not None
+        assert self._orders['close'] is not None
 
         open_amount = self._orders['open']['amount']
-        closing_amount = self._close_order['amount']
+        closing_amount = self._orders['close']['amount']
 
         return closing_amount - open_amount
 
@@ -942,7 +956,7 @@ class Short(Position):
             open_cost = self._orders['open']['cost']
             return 100 * ((current_price - open_cost) / open_cost)
 
-        assert self._close_order is not None
+        assert self._orders['close'] is not None
 
         open_amount = self._orders['open']['amount']
         profit = self.get_profit(current_price=current_price)
