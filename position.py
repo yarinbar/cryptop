@@ -49,19 +49,21 @@ class Position:
                 'test' in params and
                 'date due' in params and
                 'type' in params and
-                'secured' in params and
+                'secure' in params and
                 'amount' in params):
 
             raise KeyError
 
-        if not params['type'] in position_instructions:
+        params['type'] = params['type'].lower()
+
+        if params['type'] not in position_instructions:
             raise ValueError('this order type is not supported')
 
         if params['take profit'] < 0 or params['stop loss'] < 0 or params['limit'] <= 0:
             raise ValueError('take profit and stop loss have to be >=0')
 
-        if type(params['secured']) is not bool or type(params['test']) is not bool:
-            raise ValueError('secured and test must be bool type')
+        if type(params['secure']) is not bool or type(params['test']) is not bool:
+            raise ValueError('secure and test must be bool type')
 
         if not (type(params['amount']) in [int, float] and
                 type(params['limit']) in [int, float] and
@@ -72,11 +74,11 @@ class Position:
 
         self.take_profit_price = params['take profit']
         self.stop_loss_price = params['stop loss']
-        self.need_secure = params['secured']
+        self.need_secure = params['secure']
         self.test = params['test']
 
-        self.params = params
-        self.is_secured = False
+        self.params = params.copy()
+        self.is_secure = False
 
         self.id = None
         self.pos_amount = 0
@@ -97,7 +99,7 @@ class Position:
                 self.pos_amount = self._orders['open']['amount']
                 self.status = OPEN
 
-            if self.status == OPEN and self.need_secure and not self.is_secured:
+            if self.status == OPEN and self.need_secure and not self.is_secure:
                 self.secure()
 
 
@@ -218,11 +220,11 @@ class Position:
     def cancel(self):
         pass
 
-    def close(self):
+    def close(self, close_price=None):
         pass
 
     def secure(self, take_profit=None, stop_loss=None):
-        if self.is_secured:
+        if self.is_secure:
             self._expose()
 
         self.need_secure = True
@@ -233,20 +235,20 @@ class Position:
     def _expose(self):
 
         """
-        calling to this method will not change the need_secured attr, because we call it for the sake of exposing the position
+        calling to this method will not change the need_secure attr, because we call it for the sake of exposing the position
         it's not a user made decision
         :return: 0 on success -1 on failure
         """
 
-        if not self.is_secured:
-            self.is_secured = False
+        if not self.is_secure:
+            self.is_secure = False
             return 0
 
 
         if MODE == TEST:
             self._take_profit_order = None
             self._stop_loss_order = None
-            self.is_secured = False
+            self.is_secure = False
             return 0
 
         take_profit_order = self._orders['take profit']
@@ -273,14 +275,14 @@ class Position:
 
         # both canceled
         if take_profit_canceled and stop_loss_canceled:
-            self.is_secured = False
+            self.is_secure = False
             self._orders['take profit'] = {}
             self._orders['stop loss'] = {}
             return 0
 
         # exactly one order was not canceled
         if not take_profit_canceled or not stop_loss_canceled:
-            self.is_secured = False
+            self.is_secure = False
 
             if take_profit_canceled:
                 self._orders['take profit'] = {}
@@ -291,7 +293,7 @@ class Position:
 
         # both were not canceled
         if not take_profit_canceled and not stop_loss_canceled:
-            self.is_secured = True
+            self.is_secure = True
             return -1
 
         # shouldn't get here
@@ -364,7 +366,7 @@ class Position:
         if self._orders['close']:
             orders_ids.append(self._orders['close']['id'])
 
-        if self.is_secured:
+        if self.is_secure:
             assert self._take_profit_order and self._stop_loss_order
 
             orders_ids.append(self._take_profit_order['id'])
@@ -387,24 +389,21 @@ class Long(Position):
 
     def __init__(self, pair, params):
 
-        if params['type'] != 'market' and not params['stop loss'] < params['limit'] < params['take profit']:
-            raise ValueError
-
         if params['stop loss'] <= 0 or params['limit'] <= 0 or params['take profit'] <= 0:
             raise ValueError
 
         Position.__init__(self, pair=pair, params=params)
 
-    def open(self):
 
+    def open(self):
         self.params['side'] = 'buy'
         return super().open()
 
-    def close(self, close_params={}):
+    def close(self, close_price=None):
 
         """
         when invoked the method will market sell the position regardless of market sate - should use only in emergencies
-        :param close_params: for testing only
+        :param close_price: for testing only
         :return:
         """
 
@@ -420,15 +419,16 @@ class Long(Position):
             return -1
 
         if MODE == TEST:
-            if 'limit' not in close_params:
-                raise KeyError('in testing you have to specify closing price')
+            if type(close_price) not in [int, float] or close_price < 0:
+                raise ValueError('in testing you have to specify closing price')
+            
+            close_params = {'amount': self._orders['open']['amount'],
+                            'type': 'market',
+                            'side': 'sell', 
+                            'symbol': self.symbol,
+                            'limit': close_price}
 
-            close_params['amount'] = self._orders['open']['amount']
-            close_params['type'] = 'market'
-            close_params['side'] = 'sell'
-            close_params['symbol'] = self.symbol
-
-            self._orders['close'] = super().test_order(params=close_params)
+            self._orders['close'] = super().test_order(params=close_params).copy()
             if self._expose() == 0:
                 self.status = CLOSED
                 return 0
@@ -490,7 +490,7 @@ class Long(Position):
         if MODE == TEST:
             protect_test(position=self, t_amount=self.pos_amount, t_take_profit=take_profit, t_stop_loss=stop_loss)
             self._orders['open']['status'] = 'closed'
-            self.is_secured = True
+            self.is_secure = True
             return 0
 
         # TODO - make special handling for binance errors like NoFunds etc
@@ -523,10 +523,10 @@ class Long(Position):
             print(e)
 
         if not take_profit_order_created or not stop_loss_order_created:
-            self.is_secured = False
+            self.is_secure = False
             return -1
 
-        self.is_secured = True
+        self.is_secure = True
         return 0
 
     def cancel(self):
@@ -638,7 +638,7 @@ class Short(Position):
     def __init__(self, pair):
         Position.__init__(self, pair=pair)
 
-    def open_market(self, amount, take_profit, stop_loss, secured=True, date_due=None, params={}):
+    def open_market(self, amount, take_profit, stop_loss, secure=True, date_due=None, params={}):
 
         if amount <= 0 or take_profit <= 0 or stop_loss <= 0:
             return -1
@@ -653,7 +653,7 @@ class Short(Position):
         self.stop_loss = stop_loss
         self.date_due = date_due
 
-        self.need_secure = secured
+        self.need_secure = secure
 
         """
         TEST
@@ -703,7 +703,7 @@ class Short(Position):
 
         return 0
 
-    def open_limit(self, amount, limit, take_profit, stop_loss, secured=True, date_due=None, params={}):
+    def open_limit(self, amount, limit, take_profit, stop_loss, secure=True, date_due=None, params={}):
 
         if amount <= 0 or limit <= 0 or take_profit <= 0 or stop_loss <= 0:
             return -1
@@ -718,7 +718,7 @@ class Short(Position):
         self.stop_loss = stop_loss
         self.date_due = date_due
 
-        self.need_secure = secured
+        self.need_secure = secure
 
         """
         TEST
@@ -743,7 +743,7 @@ class Short(Position):
         """
 
         try:
-            self._orders['open'] = binance.create_limit_sell_order(self.symbol, amount, limit, secured, params)
+            self._orders['open'] = binance.create_limit_sell_order(self.symbol, amount, limit, secure, params)
             self.id = self._orders['open']['id']
 
         except ccxt.RequestTimeout:
@@ -851,7 +851,7 @@ class Short(Position):
         if MODE == TEST:
             protect_test(position=self, t_amount=self.pos_amount, t_take_profit=take_profit, t_stop_loss=stop_loss)
             self._orders['open']['status'] = 'closed'
-            self.is_secured = True
+            self.is_secure = True
             return 0
 
         # TODO - make special handling for binance errors like NoFunds etc
@@ -876,10 +876,10 @@ class Short(Position):
             print(e)
 
         if not take_profit_order_created or not stop_loss_order_created:
-            self.is_secured = False
+            self.is_secure = False
             return -1
 
-        self.is_secured = True
+        self.is_secure = True
         return 0
 
     def cancel(self):

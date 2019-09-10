@@ -66,83 +66,33 @@ class PositionBook(object):
                 -1 on failure
         """
 
-        try:
+        if 'position' not in params:
+            raise KeyError
 
-            if MODE == TEST:
-                assert params['test']
+        pos_type = params['position'].lower()
 
-            position_type = params['type']
-            instruction   = params['instruction']
-
-            position_type = position_type.lower()
-            instruction = instruction.lower()
-
-            if type(position_type) is not str or type(instruction) is not str:
-                return -1
-
-            if position_type not in position_types:
-                return -1
-
-            if instruction not in position_instructions:
-                return -1
-
-            amount          = params['amount']
-            limit           = 0
-            target_price    = params['target price']
-            stop_loss       = params['stop loss']
-            secured         = params['secured']
-            date_due        = params['date due']
-
-            if instruction == 'limit':
-                limit = params['limit']
-
-        except Exception as e:
-            print(e)
+        if type(pos_type) is not str or pos_type not in position_types:
             return -1
 
 
-        # FIRST STEP
+        new_pos = None
 
-        position = Position(pair=self.pair)
+        if pos_type == 'long':
+            new_pos = Long(pair=self.pair, params=params)
 
-        if position_type == 'long':
-            position = Long(pair=self.pair)
+        if pos_type == 'short':
+            # TODO - add after finishing short
+            pass
 
-        elif position_type == 'short':
-            position = Short(pair=self.pair)
+        if pos_type == 'scalp':
+            # TODO - add after finishing scalp
+            pass
+        
 
-        elif position_type == 'scalp':
-            position = Scalp(pair=self.pair)
-
-
-        # SECOND STEP
-
-        res = -1
-
-        if instruction == 'limit':
-            res = position.open_limit(amount=amount,
-                                      limit=limit,
-                                      target_price=target_price,
-                                      stop_loss=stop_loss,
-                                      secured=secured,
-                                      date_due=date_due,
-                                      params=params)
-
-        if instruction == 'market':
-            res = position.open_market(amount=amount,
-                                       target_price=target_price,
-                                       stop_loss=stop_loss,
-                                       secured=secured,
-                                       date_due=date_due,
-                                       params=params)
-
-        if res != 0:
+        if new_pos is None or new_pos.open() != 0:
             return -1
 
-        if self._enter(position=position) != 0:
-            return -1
-
-        return 0
+        return self._enter(position=new_pos)
 
     def close(self, pos_id, params={}):
 
@@ -176,16 +126,17 @@ class PositionBook(object):
 
         return 0
 
-    @staticmethod
-    def _close_list(pos_list):
+    def _close_list(self, pos_list, close_price):
 
         if type(pos_list) is not list:
-            return -1
+            return 0
 
         not_closed = []
 
         # timeout control
         iteration = 0
+
+        initial_size = len(pos_list)
 
         while len(pos_list) != 0 and iteration < 100:
 
@@ -194,17 +145,17 @@ class PositionBook(object):
                 if not isinstance(position, Position):
                     continue
 
-                if position.close() != 0:
+                if position.close(close_price=close_price) != 0:
                     not_closed.append(position)
 
             pos_list = not_closed
             not_closed = []
             iteration += 1
 
-        if len(not_closed) > 0:
-            return -1
+        self.sync()
 
-        return 0
+        # always non-positive number
+        return len(not_closed) - len(pos_list)
 
 
     def get_size(self):
@@ -220,6 +171,8 @@ class PositionBook(object):
         position_base = {}
         cond_positions = []
 
+
+
         try:
             position_base = self.book[status]
 
@@ -228,28 +181,45 @@ class PositionBook(object):
                 position_base = {**position_base, **booklet}
 
         for pos_id, position in position_base.items():
-            if cond(position):
-                cond_positions.append(position)
+            try:
+                if cond(position):
+                    cond_positions.append(position)
+            except:
+                pass
 
         return cond_positions
 
-    def close_cond(self, cond):
+    def close_cond(self, cond, close_price=None, status=None):
 
         """
         closing open positions and canceling wait_open positions
+        :param close_price: a non negative float or int
+        :param status: WAIT_OPEN, OPEN
         :param cond: gets position and returns boolean
-        :return: 0 on success -1 on failure
+        :return: 0 on success -# on failure # is the number of unclosed positions with this cond
         """
 
-        open_pos_list = self.get_cond_positions(cond=cond, status=OPEN)
-        wait_open_pos_list = self.get_cond_positions(cond=cond, status=WAIT_OPEN)
+        if type(close_price) not in [int, float] or close_price < 0:
+            raise ValueError('closing price has to be a non negative number')
 
-        pos_list = open_pos_list.extend(wait_open_pos_list)
+        if status not in [OPEN, WAIT_OPEN, None]:
+            raise KeyError("no status {} exists in book".format(status))
 
-        if self._close_list(pos_list=pos_list) != 0:
-            return -1
+        pos_list = []
 
-        return 0
+        if status == OPEN:
+            pos_list = self.get_cond_positions(cond=cond, status=OPEN)
+
+        elif status == WAIT_OPEN:
+            pos_list = self.get_cond_positions(cond=cond, status=WAIT_OPEN)
+
+        elif status is None:
+
+            open_pos_list = self.get_cond_positions(cond=cond, status=OPEN)
+            wait_open_pos_list = self.get_cond_positions(cond=cond, status=WAIT_OPEN)
+            pos_list = open_pos_list + wait_open_pos_list
+
+        return self._close_list(pos_list=pos_list, close_price=close_price)
 
 
     def __getitem__(self, status):

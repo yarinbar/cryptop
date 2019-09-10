@@ -126,6 +126,12 @@ def get_size(dict1):
 
     return sum
 
+
+class A:
+    def __init__(self, d):
+        self.p = d['p']
+        self.d = d
+
 if __name__ == '__main__':
     #print(binance.has)
     open_orders= [1,2,3,4,5,6]
@@ -143,9 +149,12 @@ if __name__ == '__main__':
     #
     # print(get_size(dict1))
 
-    d = {'open': dict}
-
-    print(type(d['open']))
+    d = {'p': 'lol'}
+    a = A(d=d)
+    d['p'] = 'sad'
+    b = A(d=d)
+    print(a.p, a.d)
+    print(b.p, b.d)
 
 
 

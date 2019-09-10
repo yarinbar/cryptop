@@ -16,7 +16,7 @@ class LongTest(unittest.TestCase):
             pos = Long(pair='ETHUSDT', params=params)
 
         params['test'] = True
-        params['secured'] = False
+        params['secure'] = False
         params['amount'] = 1
         params['date due'] = None
         params['type'] = 'limit'
@@ -47,13 +47,13 @@ class LongTest(unittest.TestCase):
         params['type'] = 'limit'
 
         # should be bool
-        params['secured'] = 2
+        params['secure'] = 2
 
         with self.assertRaises(ValueError):
             pos = Long(pair='ETHUSDT', params=params)
 
         # OK
-        params['secured'] = True
+        params['secure'] = True
 
         # should be bool
         params['test'] = 2
@@ -68,7 +68,7 @@ class LongTest(unittest.TestCase):
     def test_open(self):
 
         params = {'test': True,
-                  'secured': False,
+                  'secure': False,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -98,7 +98,7 @@ class LongTest(unittest.TestCase):
     def test_update(self):
 
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -125,7 +125,7 @@ class LongTest(unittest.TestCase):
 
     def test_close(self):
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -160,7 +160,7 @@ class LongTest(unittest.TestCase):
                 if res == 0 and not test1:
                     # after closing waiting to open position it cancels instead
                     self.assertIn(long2.status, [CLOSED, CANCELED])
-                    self.assertFalse(long2.is_secured)
+                    self.assertFalse(long2.is_secure)
                     test1 = True
                     print('canceled')
                 if res == -1 and not test2:
@@ -174,7 +174,7 @@ class LongTest(unittest.TestCase):
     def test_cancel(self):
 
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -188,7 +188,7 @@ class LongTest(unittest.TestCase):
         while long1.status != OPEN:
             long1.update()
 
-        self.assertTrue(long1.is_secured)
+        self.assertTrue(long1.is_secure)
 
         # cant cancel open position
         self.assertEqual(long1.cancel(), -1)
@@ -203,11 +203,11 @@ class LongTest(unittest.TestCase):
 
         # status is wait_open now we can cancel
         self.assertEqual(long2.cancel(), 0)
-        self.assertFalse(long2.is_secured)
+        self.assertFalse(long2.is_secure)
 
     def test_secure_expose(self):
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -221,19 +221,19 @@ class LongTest(unittest.TestCase):
         while long1.status != OPEN:
             long1.update()
 
-        self.assertTrue(long1.is_secured)
+        self.assertTrue(long1.is_secure)
         self.assertEqual(long1['stop loss']['limit'], 1)
         self.assertEqual(long1['take profit']['limit'], 3)
         self.assertEqual(long1.stop_loss_price, 1)
         self.assertEqual(long1.take_profit_price, 3)
 
 
-        params['secured'] = False
+        params['secure'] = False
         long2 = Long(pair='ETHUSDT', params=params)
         long2.open()
 
         self.assertFalse(long2.need_secure)
-        self.assertFalse(long2.is_secured)
+        self.assertFalse(long2.is_secure)
 
         while long2.status != OPEN:
             long2.update()
@@ -243,7 +243,7 @@ class LongTest(unittest.TestCase):
 
 
         self.assertTrue(long2.need_secure)
-        self.assertTrue(long2.is_secured)
+        self.assertTrue(long2.is_secure)
 
         self.assertEqual(long2['stop loss']['limit'], 1)
         self.assertEqual(long2['take profit']['limit'], 3)
@@ -261,16 +261,16 @@ class LongTest(unittest.TestCase):
         self.assertEqual(long2.take_profit_price, 100)
 
         self.assertTrue(long2.need_secure)
-        self.assertTrue(long2.is_secured)
+        self.assertTrue(long2.is_secure)
 
         long2.expose()
 
         self.assertFalse(long2.need_secure)
-        self.assertFalse(long2.is_secured)
+        self.assertFalse(long2.is_secure)
 
         long2.secure()
         self.assertTrue(long2.need_secure)
-        self.assertTrue(long2.is_secured)
+        self.assertTrue(long2.is_secure)
         self.assertEqual(long2['stop loss']['limit'], 0.5)
         self.assertEqual(long2['take profit']['limit'], 100)
         self.assertEqual(long2.stop_loss_price, 0.5)
@@ -279,19 +279,19 @@ class LongTest(unittest.TestCase):
         long3 = Long(pair='ETHUSDT', params=params)
         long3.open()
 
-        params['secured'] = False
+        params['secure'] = False
         while long2.status != OPEN:
             long2.update()
 
         self.assertFalse(long3.need_secure)
-        self.assertFalse(long3.is_secured)
+        self.assertFalse(long3.is_secure)
 
         # exposing exposed position
         self.assertEqual(long3.expose(), 0)
 
     def test_get_fee(self):
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -317,7 +317,7 @@ class LongTest(unittest.TestCase):
 
     def test_get_profit(self):
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -357,7 +357,7 @@ class LongTest(unittest.TestCase):
     def test_get_profit_percent(self):
 
         params = {'test': True,
-                  'secured': True,
+                  'secure': True,
                   'amount': 1,
                   'date due': None,
                   'type': 'limit',
@@ -374,4 +374,4 @@ class LongTest(unittest.TestCase):
         self.assertAlmostEqual(long1.get_profit_percent(10), 400)
 
         long1.close({'limit': 1.5})
-        self.assertAlmostEqual(long1.get_profit_percent(10), - 25)
+        self.assertAlmostEqual(long1.get_profit_percent(10), -25)

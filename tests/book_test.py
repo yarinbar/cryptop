@@ -1,11 +1,18 @@
 import random
 import unittest
 from book import PositionBook
-from position import Long, Short
+from position import Long
 from settings import *
 
-test_dict = {'test': True,
-             'price': 200}
+params = {'test': True,
+          'limit': 2,
+          'stop loss': 1,
+          'take profit': 3,
+          'secure': True,
+          'date due': None,
+          'amount': 1,
+          'type': 'market'}
+
 
 class TestPositionBook(unittest.TestCase):
 
@@ -18,23 +25,15 @@ class TestPositionBook(unittest.TestCase):
 
         for i in range(0, size, 1):
 
-            pos = None
+            if i % 2 == 0:
+                params['type'] = 'market'
 
-            if i % 4 == 0:
-                pos = Long(pair='ETHUSDT')
-                pos.open_market(amount=1, target_price=210, stop_loss=190, params=test_dict)
 
-            elif i % 4 == 1:
-                pos = Short(pair='ETHUSDT')
-                pos.open_market(amount=1, target_price=190, stop_loss=210, params=test_dict)
+            elif i % 2 == 1:
+                params['type'] = 'limit'
 
-            elif i % 4 == 2:
-                pos = Long(pair='ETHUSDT')
-                pos.open_limit(amount=1, limit=200, target_price=210, stop_loss=190, params=test_dict)
-
-            elif i % 4 == 3:
-                pos = Short(pair='ETHUSDT')
-                pos.open_limit(amount=1, limit=200, target_price=190, stop_loss=210, params=test_dict)
+            pos = Long(pair='ETHUSDT', params=params)
+            pos.open()
 
             if book._enter(position=pos) == 0:
                 count += 1
@@ -44,23 +43,7 @@ class TestPositionBook(unittest.TestCase):
     def test_enter(self):
 
         book, book_size = self.make_book(100)
-
-        self.assertEqual(first=book.get_size(), second=book_size)
-
-
-        pos1 = Long(pair='ETHUSDT')
-        pos1.open_market(amount=1, target_price=210, stop_loss=190, params=test_dict)
-
-        pos2 = Long(pair='ETHUSDT')
-        pos2.open_market(amount=1, target_price=210, stop_loss=190, params=test_dict)
-
-        pos2.id = pos1.id
-
-        book.enter(pos1)
-        book.enter(pos2)
-        book.enter(3)
-
-        self.assertEqual(book.get_size(), book_size + 1)
+        self.assertEqual(book.get_size(), book_size)
 
     def test_sync(self):
 
@@ -92,7 +75,6 @@ class TestPositionBook(unittest.TestCase):
 
         # checking that all positions that are in the book are fetchable
         for position in pos_list:
-
             self.assertEqual(book.fetch_position(position.id), position)
 
         # checking that cant fetch wrong id
@@ -112,72 +94,52 @@ class TestPositionBook(unittest.TestCase):
         book = PositionBook(pair='ETHUSDT')
 
         # fail because test != True
-        self.assertEqual(book.open(params={}), -1)
+        with self.assertRaises(KeyError):
+            book.open(params={})
 
-        params = {'test': True,
-                  'price': 200,
-                  'secured': False,
-                  'amount': 1,
-                  'date due': None}
+        params['limit'] = 200
+        params['position'] = 'lOnG'
 
         # fail because no instruction or type
-        self.assertEqual(book.open(params={}), -1)
+        with self.assertRaises(KeyError):
+            book.open(params={})
 
-
-        for i in range(1, 1000):
+        for i in range(1, 100):
 
             if i % 2 == 0:
-                params['type'] = 'ShoRt'
+                params['type'] = 'market'
                 params['stop loss'] = 210
-                params['target price'] = 190
+                params['take profit'] = 190
 
             if i % 2 == 1:
-                params['type'] = 'LonG'
+                params['type'] = 'liMit'
                 params['stop loss'] = 190
-                params['target price'] = 210
-
-
-            if i % 3 == 0:
-                params['instruction'] = 'marKet'
-            else:
-                params['instruction'] = 'lImiT'
-                params['limit'] = 200
+                params['take profit'] = 210
 
             self.assertEqual(book.open(params=params), 0)
-
-
 
         open_positions = {**book[OPEN], **book[WAIT_OPEN]}
 
         for pos_id, position in open_positions.items():
-            self.assertFalse(position.need_secure)
-
+            self.assertTrue(position.need_secure)
 
         book2 = PositionBook('ETHUSDT')
-        params['secured'] = True
+        params['secure'] = True
+        params['position'] = 'LonG'
 
-        for i in range(1, 1000):
+        for i in range(1, 100):
 
             if i % 2 == 0:
-                params['type'] = 'ShoRt'
+                params['type'] = 'liMit'
                 params['stop loss'] = 210
-                params['target price'] = 190
+                params['take profit'] = 190
 
             if i % 2 == 1:
-                params['type'] = 'LonG'
+                params['type'] = 'mArkET'
                 params['stop loss'] = 190
-                params['target price'] = 210
-
-
-            if i % 3 == 0:
-                params['instruction'] = 'marKet'
-            else:
-                params['instruction'] = 'lImiT'
-                params['limit'] = 200
+                params['take profit'] = 210
 
             self.assertEqual(book2.open(params=params), 0)
-
-
 
         open_positions = {**book2[OPEN], **book2[WAIT_OPEN]}
 
@@ -210,50 +172,84 @@ class TestPositionBook(unittest.TestCase):
 
         book2 = PositionBook('ETHUSDT')
 
-        #1
+        # 1
         book2.open(params={'test': True,
-                           'type': 'lonG',
-                           'instruction': 'Limit',
+                           'position': 'lonG',
+                           'type': 'Limit',
                            'limit': 190,
-                           'target price': 230,
+                           'take profit': 230,
                            'stop loss': 150,
-                           'secured': True,
+                           'secure': True,
                            'date due': None,
                            'amount': 2})
 
-        #2
+        # 2
         book2.open(params={'test': True,
-                           'type': 'short',
-                           'instruction': 'Limit',
+                           'position': 'long',
+                           'type': 'Limit',
                            'limit': 200,
-                           'target price': 150,
+                           'take profit': 150,
                            'stop loss': 250,
-                           'secured': False,
+                           'secure': False,
                            'date due': None,
                            'amount': 4})
 
-        #3
+        # 3
         book2.open(params={'test': True,
-                           'type': 'short',
-                           'instruction': 'market',
-                           'price': 130,
-                           'target price': 100,
+                           'position': 'long',
+                           'type': 'market',
+                           'limit': 130,
+                           'take profit': 100,
                            'stop loss': 150,
-                           'secured': False,
+                           'secure': False,
                            'date due': None,
                            'amount': 0.7})
 
         # should be len 2
-        list1 = book2.get_cond_positions(cond=lambda pos: isinstance(pos, Short))
-        list2 = book2.get_cond_positions(cond=lambda pos: pos['open']['price'] > 140)
+        list1 = book2.get_cond_positions(cond=lambda pos: isinstance(pos, Long))
+        list2 = book2.get_cond_positions(cond=lambda pos: pos['open']['limit'] > 140)
 
-        self.assertEqual(len(list1), 2)
+        self.assertEqual(len(list1), 3)
         self.assertEqual(len(list2), 2)
 
         # should be len 1
-        list3 = book2.get_cond_positions(cond=lambda pos: pos.need_secure and pos.target_price > 200)
+        list3 = book2.get_cond_positions(cond=lambda pos: pos.need_secure and pos.take_profit_price > 200)
         self.assertEqual(len(list3), 1)
 
         # should be 0
-        list4 = book2.get_cond_positions(cond=lambda pos: not pos.need_secure and pos.target_price > 200)
+        list4 = book2.get_cond_positions(cond=lambda pos: not pos.need_secure and pos.take_profit_price > 200)
         self.assertEqual(len(list4), 0)
+
+    def test_close_cond(self):
+
+        book, book_size = self.make_book(size=100000)
+
+        limit_pos = book.get_cond_positions(cond=lambda pos: pos.params['type'] == 'limit')
+        num_limit = len(limit_pos)
+
+        book.close_cond(cond=lambda pos: pos.params['type'] == 'limit', close_price=3)
+
+        self.assertEqual(book_size - num_limit, len(book[OPEN]) + len(book[WAIT_OPEN]))
+        self.assertEqual(num_limit, len(book[CLOSED]) + len(book[CANCELED]))
+
+        prev_closed_size = len(book[CLOSED])
+        book.close_cond(cond=lambda pos: pos.id < 1000000, close_price=3)
+
+        # supposed to be the same because ids are distributed from 1m to 9m
+        self.assertEqual(prev_closed_size, len(book[CLOSED]))
+
+        remaining_limit = book.get_cond_positions(cond=lambda pos: pos.params['type'] == 'limit', status=OPEN) + \
+                          book.get_cond_positions(cond=lambda pos: pos.params['type'] == 'limit', status=WAIT_OPEN)
+
+        # should be empty because we closed all
+        self.assertEqual([], remaining_limit)
+
+        unclosed = -book.close_cond(cond=lambda pos: pos.id > 9000000, close_price=4)
+
+        if unclosed != 0:
+            print("number of unclosed positions is {}".format(unclosed))
+
+        first_closed = book.get_cond_positions(cond=lambda pos: pos['close']['limit'] == 3)
+        second_closed = book.get_cond_positions(cond=lambda pos: pos['close']['limit'] == 4)
+
+        self.assertEqual(len(book[CLOSED]), len(first_closed + second_closed))
