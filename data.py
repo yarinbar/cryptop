@@ -14,7 +14,6 @@ from binance import client
 from bokeh.plotting import figure, show, output_file
 import time
 
-
 binance_client = client.Client(environ.get('BINANCE_API_KEY'), environ.get('BINANCE_API_SECRET'))
 
 client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
@@ -30,6 +29,7 @@ client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
                     '3d': KLINE_INTERVAL_3DAY,
                     '1w': KLINE_INTERVAL_1WEEK}
 
+
 class Data:
 
     def __init__(self, pair, interval):
@@ -39,8 +39,7 @@ class Data:
 
         try:
             self.df = pd.read_csv(r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\data\{}_{}.csv'.format(self.pair,
-                                                                                                                 self.interval),
-                                  index_col=0)
+                                                                                                                    self.interval), index_col=0)
             self.update_dataset()
             self.do_ta()
 
@@ -77,7 +76,7 @@ class Data:
     def save_to_csv(self):
         try:
             self.df.to_csv(r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\data\{}_{}.csv'.format(self.pair,
-                                                                                                          self.interval),
+                                                                                                             self.interval),
                            header=True)
         except Exception as e:
             print(e)

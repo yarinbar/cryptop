@@ -334,7 +334,7 @@ class LongTest(unittest.TestCase):
         while long1.status != OPEN:
             long1.update()
 
-        long1.close(close_params={'limit': 2.5})
+        long1.close(2.5)
 
         self.assertAlmostEqual(long1.get_profit(3), .4955, 3)
         self.assertAlmostEqual(long1.get_profit(1), .4955, 3)
@@ -350,7 +350,7 @@ class LongTest(unittest.TestCase):
         while long2.status != OPEN:
             long2.update()
 
-        long2.close(close_params={'limit': 250})
+        long2.close(250)
 
         self.assertAlmostEqual(long2.get_profit(), -2507.5)
 
@@ -371,7 +371,7 @@ class LongTest(unittest.TestCase):
         while long1.status != OPEN:
             long1.update()
 
-        self.assertAlmostEqual(long1.get_profit_percent(10), 400)
+        self.assertAlmostEqual(long1.get_profit_percent(10), 399.4)
 
-        long1.close({'limit': 1.5})
-        self.assertAlmostEqual(long1.get_profit_percent(10), -25)
+        long1.close(1.5)
+        self.assertAlmostEqual(long1.get_profit_percent(10), -25.175)

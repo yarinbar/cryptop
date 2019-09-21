@@ -1,7 +1,6 @@
 from os import environ
 import logging
 from binance.enums import *
-import ccxt
 import sched
 import time
 
@@ -45,16 +44,6 @@ position_instructions = {'limit': 'limit',
 
 MAKER_FEE = 0.1 / 100
 TAKER_FEE = 0.1 / 100
-
-binance_class = getattr(ccxt, 'binance')
-
-binance = binance_class({
-    'apiKey': environ.get('BINANCE_API_KEY'),
-    'secret': environ.get('BINANCE_API_SECRET'),
-    'timeout': 3000,
-    'enableRateLimit': True,
-    'adjustForTimeDifference': True
-})
 
 
 interval_milli = {'1m': 1 * 60 * 1000,

@@ -108,7 +108,6 @@ class PositionBook(object):
 
         return 0
 
-
     def _enter(self, position):
 
         if not isinstance(position, Position):

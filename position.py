@@ -34,6 +34,14 @@ Order Call will return this
 }
 '''
 
+binance_class = getattr(ccxt, 'binance')
+binance = binance_class({
+    'apiKey': environ.get('BINANCE_API_KEY'),
+    'secret': environ.get('BINANCE_API_SECRET'),
+    'timeout': 3000,
+    'enableRateLimit': True,
+    'adjustForTimeDifference': True
+})
 
 class Position:
 
@@ -59,7 +67,7 @@ class Position:
         if params['type'] not in position_instructions:
             raise ValueError('this order type is not supported')
 
-        if params['take profit'] < 0 or params['stop loss'] < 0 or params['limit'] <= 0:
+        if params['take profit'] < 0 or params['stop loss'] < 0 or params['limit'] < 0:
             raise ValueError('take profit and stop loss have to be >=0')
 
         if type(params['secure']) is not bool or type(params['test']) is not bool:
@@ -384,16 +392,15 @@ class Position:
 
         return self._orders[order]
 
-
 class Long(Position):
 
     def __init__(self, pair, params):
 
-        if params['stop loss'] <= 0 or params['limit'] <= 0 or params['take profit'] <= 0:
-            raise ValueError
-
         Position.__init__(self, pair=pair, params=params)
 
+        # Long unique requirement
+        if not params['stop loss'] <= params['limit'] <= params['take profit']:
+            raise ValueError
 
     def open(self):
         self.params['side'] = 'buy'
@@ -420,7 +427,7 @@ class Long(Position):
 
         if MODE == TEST:
             if type(close_price) not in [int, float] or close_price < 0:
-                raise ValueError('in testing you have to specify closing price')
+                raise ValueError('in testing you have to specify a valid closing price')
             
             close_params = {'amount': self._orders['open']['amount'],
                             'type': 'market',
@@ -499,6 +506,19 @@ class Long(Position):
         stop_loss_order_created = False
 
         try:
+            self._orders['stop loss'] = binance.create_order(symbol=self.symbol,
+                                                             type='limit',
+                                                             side='sell',
+                                                             amount=self.pos_amount,
+                                                             price=stop_loss,
+                                                             params=self.params)
+            stop_loss_order_created = True
+        except Exception as e:
+            print("Error with placing stop_loss limit")
+            print(e)
+
+
+        try:
             self._orders['take profit'] = binance.create_order(symbol=self.symbol,
                                                                type='limit',
                                                                side='sell',
@@ -510,17 +530,6 @@ class Long(Position):
             print("Error with placing take_profit limit")
             print(e)
 
-        try:
-            self._orders['stop loss'] = binance.create_order(symbol=self.symbol,
-                                                             type='limit',
-                                                             side='sell',
-                                                             amount=self.pos_amount,
-                                                             price=stop_loss,
-                                                             params=self.params)
-            stop_loss_order_created = True
-        except Exception as e:
-            print("Error with placing stop_loss limit")
-            print(e)
 
         if not take_profit_order_created or not stop_loss_order_created:
             self.is_secure = False
@@ -580,17 +589,23 @@ class Long(Position):
         :return: profit
         """
 
+        if (self.status == OPEN or self.status == WAIT_OPEN) and (MODE == TEST and current_price is None):
+            raise ValueError("you have to specify a price")
+
+        if type(current_price) not in [int, float] or current_price < 0:
+            raise ValueError("price has to be non-negative int or float")
+
         if self.status is not CLOSED:
             # if the order is not closed a price should be supplied
             assert current_price is not None
 
             open_cost = self._orders['open']['cost']
-            return current_price - open_cost
+            return current_price - open_cost - self.get_fee(price=current_price)
 
         open_cost = self._orders['open']['cost']
         closing_profit = self._orders['close']['cost']
 
-        return closing_profit - open_cost - self.get_fee()
+        return closing_profit - open_cost - self.get_fee(price=current_price)
 
     # TODO - fees
     def get_profit_percent(self, current_price=None):
@@ -599,19 +614,13 @@ class Long(Position):
         :return: profit in percentages
         """
 
-        if self.status is not CLOSED:
-            # if the order is not closed a price should be supplied
-            assert current_price is not None
+        if (self.status == OPEN or self.status == WAIT_OPEN) and (MODE == TEST and current_price is None):
+            raise ValueError("you have to specify a price")
 
-            open_cost = self._orders['open']['cost']
-            return 100 * ((current_price - open_cost) / open_cost)
+        if type(current_price) not in [int, float] or current_price < 0:
+            raise ValueError("price has to be non-negative int or float")
 
-        assert self._orders['close'] is not None
-
-        open_cost = self._orders['open']['cost']
-        close_price = self._orders['close']['cost']
-
-        return 100 * ((close_price - open_cost - self.get_fee()) / open_cost)
+        return 100 * (self.get_profit(current_price=current_price) / self._orders['open']['cost'])
 
     def set_exit_points(self, take_profit, stop_loss):
 

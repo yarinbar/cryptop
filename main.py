@@ -8,6 +8,8 @@ import ccxt
 import random
 from position import Long, Short
 import numpy as np
+import pickle
+import os
 
 client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
                     '5m': KLINE_INTERVAL_5MINUTE,
@@ -133,30 +135,33 @@ class A:
         self.d = d
 
 if __name__ == '__main__':
-    #print(binance.has)
-    open_orders= [1,2,3,4,5,6]
-    # hist = np.zeros((len(open_orders)))
-    # order_hist = np.copy(open_orders)
-    # order_hist = np.append(order_hist, hist)
-    # order_hist = order_hist.reshape((2, len(open_orders)))
-    #
-    # i, j = np.where(order_hist == 6)
-    # print(i[0], j[0])
 
-    # dict1 = {'yarin': {1: 2, 2: 3},
-    #          'gal': {1: 2, 2: 3},
-    #          'eden': {1: 2, 2: 3}}
-    #
-    # print(get_size(dict1))
-
-    d = {'p': 'lol'}
-    a = A(d=d)
-    d['p'] = 'sad'
-    b = A(d=d)
-    print(a.p, a.d)
-    print(b.p, b.d)
+    d = {"lol": 4}
 
 
+
+
+    for i in range(1, 100):
+
+        script_dir = os.path.dirname(__file__)
+        rel_path = 'bot_backups/{0}_{1}.backup.pickle'.format(int(time.time()), 'lol')
+        abs_file_path = os.path.join(script_dir, rel_path)
+
+        pickle.dump(d,
+                    open(abs_file_path, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+
+        folder_path = os.path.dirname(__file__) + '/bot_backups/'
+        l = os.listdir(folder_path)
+        backups = [name for name in l if 'lol' in name]
+        backups.sort()
+
+        if len(backups) > 10:
+            rel_path = 'bot_backups/{}'.format(backups[0])
+            abs_file_path = os.path.join(script_dir, rel_path)
+            os.remove(abs_file_path)
+
+        time.sleep(1)
 
 
 

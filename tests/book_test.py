@@ -253,3 +253,4 @@ class TestPositionBook(unittest.TestCase):
         second_closed = book.get_cond_positions(cond=lambda pos: pos['close']['limit'] == 4)
 
         self.assertEqual(len(book[CLOSED]), len(first_closed + second_closed))
+
