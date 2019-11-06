@@ -10,6 +10,8 @@ from position import Long, Short
 import numpy as np
 import pickle
 import os
+from pandas import Series
+import pandas as pd
 
 client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
                     '5m': KLINE_INTERVAL_5MINUTE,
@@ -23,7 +25,14 @@ client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
                     '1d': KLINE_INTERVAL_1DAY,
                     '3d': KLINE_INTERVAL_3DAY,
                     '1w': KLINE_INTERVAL_1WEEK}
-
+binance_class = getattr(ccxt, 'binance')
+binance = binance_class({
+    'apiKey': environ.get('BINANCE_API_KEY'),
+    'secret': environ.get('BINANCE_API_SECRET'),
+    'timeout': 3000,
+    'enableRateLimit': True,
+    'adjustForTimeDifference': True
+})
 
 def position_unit_test():
     p1 = Long(pair='ETHUSDT')
@@ -134,35 +143,54 @@ class A:
         self.p = d['p']
         self.d = d
 
+def lcc(close):
+
+    lcc = []
+
+    for i in range(0, len(close)):
+        if i == 0:
+            lcc.append(0.)
+            continue
+
+        change = 100 * ((close[i] - close[i - 1]) / close[i - 1])
+        lcc.append(change)
+
+    return Series(lcc)
+
 if __name__ == '__main__':
 
     d = {"lol": 4}
 
+    # for i in range(1, 100):
+    #
+    #     script_dir = os.path.dirname(__file__)
+    #     rel_path = 'bot_backups/{0}_{1}.backup.pickle'.format(int(time.time()), 'lol')
+    #     abs_file_path = os.path.join(script_dir, rel_path)
+    #
+    #     pickle.dump(d,
+    #                 open(abs_file_path, 'wb'),
+    #                 protocol=pickle.HIGHEST_PROTOCOL)
+    #
+    #     folder_path = os.path.dirname(__file__) + '/bot_backups/'
+    #     l = os.listdir(folder_path)
+    #     backups = [name for name in l if 'lol' in name]
+    #     backups.sort()
+    #
+    #     if len(backups) > 10:
+    #         rel_path = 'bot_backups/{}'.format(backups[0])
+    #         abs_file_path = os.path.join(script_dir, rel_path)
+    #         os.remove(abs_file_path)
+    #
+    #     time.sleep(1)
 
+    close = Series([1, 2, 1, 0.5, 2, 1000, 1015, 250, 265.2])
+    print(lcc(close))
+    print(binance.has)
 
-
-    for i in range(1, 100):
-
-        script_dir = os.path.dirname(__file__)
-        rel_path = 'bot_backups/{0}_{1}.backup.pickle'.format(int(time.time()), 'lol')
-        abs_file_path = os.path.join(script_dir, rel_path)
-
-        pickle.dump(d,
-                    open(abs_file_path, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-
-        folder_path = os.path.dirname(__file__) + '/bot_backups/'
-        l = os.listdir(folder_path)
-        backups = [name for name in l if 'lol' in name]
-        backups.sort()
-
-        if len(backups) > 10:
-            rel_path = 'bot_backups/{}'.format(backups[0])
-            abs_file_path = os.path.join(script_dir, rel_path)
-            os.remove(abs_file_path)
-
-        time.sleep(1)
-
+    medium_term = ['15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d']
+    for time in medium_term:
+        print(time)
+        ds = Data("ETHUSDT", time)
 
 
 

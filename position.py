@@ -228,7 +228,7 @@ class Position:
     def cancel(self):
         pass
 
-    def close(self, close_price=None):
+    def close(self, close_price=None, **kwargs):
         pass
 
     def secure(self, take_profit=None, stop_loss=None):
@@ -307,7 +307,6 @@ class Position:
         # shouldn't get here
         return -1
 
-
     def expose(self):
 
         """
@@ -317,7 +316,6 @@ class Position:
 
         self.need_secure = False
         return self._expose()
-
 
     def get_profit_percent(self, current_price=None):
         """
@@ -406,7 +404,7 @@ class Long(Position):
         self.params['side'] = 'buy'
         return super().open()
 
-    def close(self, close_price=None):
+    def close(self, **kwargs):
 
         """
         when invoked the method will market sell the position regardless of market sate - should use only in emergencies
@@ -415,6 +413,8 @@ class Long(Position):
         """
 
         self.update()
+
+        close_price = kwargs.get('close_price', None)
 
         # closing wait_open will invoke canceling
         if self.status == WAIT_OPEN:

@@ -6,13 +6,10 @@ import time
 
 scheduler = sched.scheduler(timefunc=time.time, delayfunc=time.sleep)
 
-
 TEST = 0
 RUN = 1
 
 MODE = TEST
-
-
 
 coins = {'ETH': 'ETH',
          'BTC': 'BTC',
@@ -45,6 +42,8 @@ position_instructions = {'limit': 'limit',
 MAKER_FEE = 0.1 / 100
 TAKER_FEE = 0.1 / 100
 
+# times to update within candle timespan
+UPDATES_FREQ = 50
 
 interval_milli = {'1m': 1 * 60 * 1000,
                   '5m': 2 * 60 * 1000,
@@ -60,6 +59,19 @@ interval_milli = {'1m': 1 * 60 * 1000,
                   '3d': 3 * 24 * 60 * 60 * 1000,
                   '1w': 7 * 24 * 60 * 60 * 1000}
 
+interval_secs = {'1m': 1 * 60,
+                 '5m': 2 * 60,
+                 '15m': 15 * 60,
+                 '30m': 30 * 60,
+                 '1h': 1 * 60 * 60,
+                 '2h': 2 * 60 * 60,
+                 '4h': 4 * 60 * 60,
+                 '6h': 6 * 60 * 60,
+                 '8h': 8 * 60 * 60,
+                 '12h': 12 * 60 * 60,
+                 '1d': 1 * 24 * 60 * 60,
+                 '3d': 3 * 24 * 60 * 60,
+                 '1w': 7 * 24 * 60 * 60}
 
 '''
 exception handler modes
@@ -69,7 +81,8 @@ SELL_OPEN = 1
 
 LOG_FORMAT = "%(levelname)s %(asctime)s - %(message)s"
 
-logging.basicConfig(filename=r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\bot_log.log', level=logging.INFO, format=LOG_FORMAT, filemode='w')
+logging.basicConfig(filename=r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\bot_log.log', level=logging.INFO,
+                    format=LOG_FORMAT, filemode='w')
 bot_log = logging.getLogger(name='bot_log.log')
 
 binance_coins = {'ETHBTC': 'ETH/BTC',
@@ -661,5 +674,3 @@ binance_coins = {'ETHBTC': 'ETH/BTC',
                  'COSBNB': 'COS/BNB',
                  'COSBTC': 'COS/BTC',
                  'COSUSDT': 'COS/USDT'}
-
-

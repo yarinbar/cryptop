@@ -9,6 +9,7 @@ import ccxt
 import pickle
 import os
 import string
+from data import Data
 
 
 
@@ -45,10 +46,9 @@ class Bot(object):
         return approved_allowance
 
 
-
     def __init__(self, **kwargs):
 
-        self.name       = kwargs.get('name', ''.join(random.choices(string.ascii_lowercase, k=6)))
+        self.name = kwargs.get('name', ''.join(random.choices(string.ascii_lowercase, k=6)))
 
         if 'name' not in kwargs or type(kwargs['name']) is not str or len(kwargs['name']) < 3:
             raise ValueError("name must be a 3 or more long string")
@@ -61,17 +61,24 @@ class Bot(object):
         self.avail_allowance    = self.allowance.copy()
         self._last_buy          = None
         self._last_sell         = None
+        self.interval           = kwargs.get('interval', None)
 
         if not isinstance(self.strategy, Strategy):
             raise ValueError("strategy must be a Strategy instance")
 
-        if 'pair' not in kwargs or kwargs['pair'] not in binance_coins:
+        if self.pair is None or kwargs['pair'] not in binance_coins:
             raise ValueError("this pair is not a valid pair")
 
-        self.symbol = binance_coins[self.pair]
+        if self.interval is None or self.interval not in interval_milli:
+            raise ValueError("please provide a valid interval")
 
-        self.base = self.symbol.split('/')[0]
-        self.quote = self.symbol.split('/')[1]
+        self.symbol     = binance_coins[self.pair]
+        self.base       = self.symbol.split('/')[0]
+        self.quote      = self.symbol.split('/')[1]
+
+        self.data       = Data(pair=self.pair, interval=self.interval)
+        self.book       = PositionBook(pair=self.pair)
+
 
     def _open(self, params):
         pass
@@ -86,7 +93,7 @@ class Bot(object):
 
     def _decide(self, **kwargs):
 
-        pos_order = kwargs.get('params', None)
+        packet = kwargs.get('packet', None)
 
         # if total cost < avail allowance - spare open
         if self.avail_allowance[self.base] < 2:
@@ -99,7 +106,30 @@ class Bot(object):
 
     def run(self):
 
-        pass
+        try:
+            next_candle = self.data.get_next_candle()
+            while True:
+
+                server_time = binance.fetch_ticker(symbol=self.symbol)['timestamp']
+
+                # next candle occurred
+                if next_candle < server_time:
+
+                    self.data.update_dataset()
+                    next_candle = self.data.get_next_candle()
+
+                    packet = self.strategy.signal(dataset=self.data)
+                    if self._decide(packet=packet):
+                        # TODO - last_buy last_sell update etc
+                        pass
+
+                self.book.sync()
+
+                time.sleep(interval_secs[self.interval] / UPDATES_FREQ)
+
+
+        except Exception as e:
+            pass
 
 # TODO - make wrapper
 """
@@ -127,7 +157,7 @@ class Bot(object):
     def _restore(self, name):
 
         script_dir = os.path.dirname(__file__)
-        rel_path = 'bot_backups/'.format(self.name, int(time.time()))
+        rel_path = 'bot_backups/{}_{}'.format(self.name, int(time.time()))
         abs_backups_path = os.path.join(script_dir, rel_path)
         file_list = os.listdir(abs_backups_path)
         backups = [name for file_name in file_list if name in file_name]

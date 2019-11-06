@@ -16,7 +16,6 @@ class PositionBook(object):
                      CLOSED: {},
                      CANCELED: {}}
 
-
     def fetch_position(self, pos_id):
 
         position = None
@@ -94,99 +93,19 @@ class PositionBook(object):
 
         return self._enter(position=new_pos)
 
-    def close(self, pos_id, params={}):
+    def close(self, pos_id, **kwargs):
 
         position = self.fetch_position(pos_id=pos_id)
 
         if position is None:
             return -1
 
-        res = position.close(params=params)
+        res = position.close(kwargs)
 
         if res != 0:
             return -1
 
         return 0
-
-    def _enter(self, position):
-
-        if not isinstance(position, Position):
-            return -1
-
-        if position.pair != self.pair:
-            return -1
-
-        position.update()
-
-        if self.fetch_position(pos_id=position.id) is not None:
-            return -1
-
-        self.book[position.status][position.id] = position
-
-        return 0
-
-    def _close_list(self, pos_list, close_price):
-
-        if type(pos_list) is not list:
-            return 0
-
-        not_closed = []
-
-        # timeout control
-        iteration = 0
-
-        initial_size = len(pos_list)
-
-        while len(pos_list) != 0 and iteration < 100:
-
-            for position in pos_list:
-
-                if not isinstance(position, Position):
-                    continue
-
-                if position.close(close_price=close_price) != 0:
-                    not_closed.append(position)
-
-            pos_list = not_closed
-            not_closed = []
-            iteration += 1
-
-        self.sync()
-
-        # always non-positive number
-        return len(not_closed) - len(pos_list)
-
-
-    def get_size(self):
-
-        sum = 0
-        for key, booklet in self.book.items():
-            sum += len(booklet)
-
-        return sum
-
-    def get_cond_positions(self, cond, status=None):
-
-        position_base = {}
-        cond_positions = []
-
-
-
-        try:
-            position_base = self.book[status]
-
-        except:
-            for status, booklet in self.book.items():
-                position_base = {**position_base, **booklet}
-
-        for pos_id, position in position_base.items():
-            try:
-                if cond(position):
-                    cond_positions.append(position)
-            except:
-                pass
-
-        return cond_positions
 
     def close_cond(self, cond, close_price=None, status=None):
 
@@ -219,6 +138,85 @@ class PositionBook(object):
             pos_list = open_pos_list + wait_open_pos_list
 
         return self._close_list(pos_list=pos_list, close_price=close_price)
+
+    def _enter(self, position):
+
+        if not isinstance(position, Position):
+            return -1
+
+        if position.pair != self.pair:
+            return -1
+
+        position.update()
+
+        if self.fetch_position(pos_id=position.id) is not None:
+            return -1
+
+        self.book[position.status][position.id] = position
+
+        return position.id
+
+    def _close_list(self, pos_list, close_price):
+
+        if type(pos_list) is not list:
+            return 0
+
+        not_closed = []
+
+        # timeout control
+        iteration = 0
+
+        initial_size = len(pos_list)
+
+        while len(pos_list) != 0 and iteration < 100:
+
+            for position in pos_list:
+
+                if not isinstance(position, Position):
+                    continue
+
+                if position.close(close_price=close_price) != 0:
+                    not_closed.append(position)
+
+            pos_list = not_closed
+            not_closed = []
+            iteration += 1
+
+        self.sync()
+
+        # always non-positive number
+        return len(not_closed) - len(pos_list)
+
+    def get_size(self):
+
+        sum = 0
+        for key, booklet in self.book.items():
+            sum += len(booklet)
+
+        return sum
+
+    def get_cond_positions(self, cond, status=None):
+
+        position_base = {}
+        cond_positions = []
+
+
+
+        try:
+            position_base = self.book[status]
+
+        except:
+            for status, booklet in self.book.items():
+                position_base = {**position_base, **booklet}
+
+        for pos_id, position in position_base.items():
+            try:
+                if cond(position):
+                    cond_positions.append(position)
+            except:
+                pass
+
+        return cond_positions
 
 
     def __getitem__(self, status):

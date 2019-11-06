@@ -21,17 +21,12 @@ class Strategy:
         self._right_calls = 0
         self._wrong_calls = 0
 
-    def signal(self, current_ticker, dataset=None):
-
-        if type(current_ticker) is not dict:
-            raise ValueError("ticker should be dictionary type")
+    def signal(self, dataset):
 
         if dataset is not None and not isinstance(dataset, Data):
             raise ValueError("dataset should be Data type")
 
-        signal = self.signal_method(current_ticker, dataset)
-
-        return self.cooldown_method(signal)
+        return self.signal_method(dataset)
 
     def get_accuracy(self):
 
