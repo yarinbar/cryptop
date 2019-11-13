@@ -66,7 +66,7 @@ class PositionBook(object):
         """
 
         if 'position' not in params:
-            raise KeyError
+            raise KeyError("please specify position kind")
 
         pos_type = params['position'].lower()
 
@@ -107,17 +107,18 @@ class PositionBook(object):
 
         return 0
 
-    def close_cond(self, cond, close_price=None, status=None):
+    def close_cond(self, cond, **kwargs):
 
         """
         closing open positions and canceling wait_open positions
-        :param close_price: a non negative float or int
-        :param status: WAIT_OPEN, OPEN
         :param cond: gets position and returns boolean
         :return: 0 on success -# on failure # is the number of unclosed positions with this cond
         """
 
-        if type(close_price) not in [int, float] or close_price < 0:
+        limit  = kwargs.get("limit", None)
+        status = kwargs.get("status", None)
+
+        if type(limit) not in [int, float] or limit < 0:
             raise ValueError('closing price has to be a non negative number')
 
         if status not in [OPEN, WAIT_OPEN, None]:
@@ -137,7 +138,7 @@ class PositionBook(object):
             wait_open_pos_list = self.get_cond_positions(cond=cond, status=WAIT_OPEN)
             pos_list = open_pos_list + wait_open_pos_list
 
-        return self._close_list(pos_list=pos_list, close_price=close_price)
+        return self._close_list(pos_list=pos_list, limit=limit)
 
     def _enter(self, position):
 
@@ -156,7 +157,7 @@ class PositionBook(object):
 
         return position.id
 
-    def _close_list(self, pos_list, close_price):
+    def _close_list(self, pos_list, limit):
 
         if type(pos_list) is not list:
             return 0
@@ -175,7 +176,7 @@ class PositionBook(object):
                 if not isinstance(position, Position):
                     continue
 
-                if position.close(close_price=close_price) != 0:
+                if position.close(limit=limit) != 0:
                     not_closed.append(position)
 
             pos_list = not_closed

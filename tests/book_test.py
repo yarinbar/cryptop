@@ -20,22 +20,31 @@ class TestPositionBook(unittest.TestCase):
     def make_book(size):
         assert type(size) is int
 
+        loc_params = {'test': True,
+                      'limit': 2,
+                      'stop loss': 1,
+                      'take profit': 3,
+                      'secure': True,
+                      'date due': None,
+                      'amount': 1,
+                      'type': 'market'}
+
         book = PositionBook(pair='ETHUSDT')
         count = 0
 
         for i in range(0, size, 1):
 
             if i % 2 == 0:
-                params['type'] = 'market'
+                loc_params['type'] = 'market'
 
 
             elif i % 2 == 1:
-                params['type'] = 'limit'
+                loc_params['type'] = 'limit'
 
-            pos = Long(pair='ETHUSDT', params=params)
+            pos = Long(pair='ETHUSDT', params=loc_params)
             pos.open()
 
-            if book._enter(position=pos) == 0:
+            if book._enter(position=pos) > 0:
                 count += 1
 
         return book, count
@@ -93,12 +102,19 @@ class TestPositionBook(unittest.TestCase):
 
         book = PositionBook(pair='ETHUSDT')
 
+        loc_params = {'test': True,
+                      'limit': 2,
+                      'stop loss': 1,
+                      'take profit': 3,
+                      'secure': True,
+                      'date due': None,
+                      'amount': 1,
+                      'type': 'market',
+                      'position': 'Long'}
+
         # fail because test != True
         with self.assertRaises(KeyError):
             book.open(params={})
-
-        params['limit'] = 200
-        params['position'] = 'lOnG'
 
         # fail because no instruction or type
         with self.assertRaises(KeyError):
@@ -116,7 +132,12 @@ class TestPositionBook(unittest.TestCase):
                 params['stop loss'] = 190
                 params['take profit'] = 210
 
-            self.assertEqual(book.open(params=params), 0)
+            res = book.open(params=loc_params)
+
+            if res <= 0:
+                print(res)
+
+            self.assertGreater(res, 0)
 
         open_positions = {**book[OPEN], **book[WAIT_OPEN]}
 
@@ -124,8 +145,8 @@ class TestPositionBook(unittest.TestCase):
             self.assertTrue(position.need_secure)
 
         book2 = PositionBook('ETHUSDT')
-        params['secure'] = True
-        params['position'] = 'LonG'
+        loc_params['secure'] = True
+        loc_params['position'] = 'LonG'
 
         for i in range(1, 100):
 
@@ -139,7 +160,7 @@ class TestPositionBook(unittest.TestCase):
                 params['stop loss'] = 190
                 params['take profit'] = 210
 
-            self.assertEqual(book2.open(params=params), 0)
+            self.assertGreater(book2.open(params=loc_params), 0)
 
         open_positions = {**book2[OPEN], **book2[WAIT_OPEN]}
 
@@ -183,27 +204,50 @@ class TestPositionBook(unittest.TestCase):
                            'date due': None,
                            'amount': 2})
 
+        # 1 - fail
+        with self.assertRaises(ValueError):
+            book2.open(params={'test': True,
+                               'position': 'long',
+                               'type': 'Limit',
+                               'limit': 200,
+                               'take profit': 150,
+                               'stop loss': 250,
+                               'secure': False,
+                               'date due': None,
+                               'amount': 4})
+
+        # 1 - fail
+        with self.assertRaises(ValueError):
+            book2.open(params={'test': True,
+                               'position': 'long',
+                               'type': 'market',
+                               'limit': 130,
+                               'take profit': 100,
+                               'stop loss': 150,
+                               'secure': False,
+                               'date due': None,
+                               'amount': 0.7})
         # 2
         book2.open(params={'test': True,
-                           'position': 'long',
+                           'position': 'lonG',
                            'type': 'Limit',
-                           'limit': 200,
-                           'take profit': 150,
-                           'stop loss': 250,
-                           'secure': False,
+                           'limit': 190,
+                           'take profit': 195,
+                           'stop loss': 150,
+                           'secure': True,
                            'date due': None,
-                           'amount': 4})
+                           'amount': 2})
 
         # 3
         book2.open(params={'test': True,
-                           'position': 'long',
-                           'type': 'market',
-                           'limit': 130,
-                           'take profit': 100,
-                           'stop loss': 150,
+                           'position': 'lonG',
+                           'type': 'Limit',
+                           'limit': 120,
+                           'take profit': 150,
+                           'stop loss': 100,
                            'secure': False,
                            'date due': None,
-                           'amount': 0.7})
+                           'amount': 2})
 
         # should be len 2
         list1 = book2.get_cond_positions(cond=lambda pos: isinstance(pos, Long))
@@ -227,13 +271,13 @@ class TestPositionBook(unittest.TestCase):
         limit_pos = book.get_cond_positions(cond=lambda pos: pos.params['type'] == 'limit')
         num_limit = len(limit_pos)
 
-        book.close_cond(cond=lambda pos: pos.params['type'] == 'limit', close_price=3)
+        book.close_cond(cond=lambda pos: pos.params['type'] == 'limit', limit=3)
 
         self.assertEqual(book_size - num_limit, len(book[OPEN]) + len(book[WAIT_OPEN]))
         self.assertEqual(num_limit, len(book[CLOSED]) + len(book[CANCELED]))
 
         prev_closed_size = len(book[CLOSED])
-        book.close_cond(cond=lambda pos: pos.id < 1000000, close_price=3)
+        book.close_cond(cond=lambda pos: pos.id < 1000000, limit=3)
 
         # supposed to be the same because ids are distributed from 1m to 9m
         self.assertEqual(prev_closed_size, len(book[CLOSED]))
@@ -244,7 +288,7 @@ class TestPositionBook(unittest.TestCase):
         # should be empty because we closed all
         self.assertEqual([], remaining_limit)
 
-        unclosed = -book.close_cond(cond=lambda pos: pos.id > 9000000, close_price=4)
+        unclosed = -book.close_cond(cond=lambda pos: pos.id > 9000000, limit=4)
 
         if unclosed != 0:
             print("number of unclosed positions is {}".format(unclosed))
@@ -253,4 +297,3 @@ class TestPositionBook(unittest.TestCase):
         second_closed = book.get_cond_positions(cond=lambda pos: pos['close']['limit'] == 4)
 
         self.assertEqual(len(book[CLOSED]), len(first_closed + second_closed))
-

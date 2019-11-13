@@ -414,7 +414,7 @@ class Long(Position):
 
         self.update()
 
-        close_price = kwargs.get('close_price', None)
+        close_price = kwargs.get('limit', None)
 
         # closing wait_open will invoke canceling
         if self.status == WAIT_OPEN:
