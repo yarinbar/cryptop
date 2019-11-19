@@ -51,9 +51,11 @@ class Data:
             self.create_df()
 
     def create_df(self):
+
+        # 1460000000000 - Thu Apr 07 2016 03:33:20
         data = binance_client.get_historical_klines_generator(symbol=self.pair,
                                                               interval=self.interval,
-                                                              start_str="1000 day ago UTC")
+                                                              start_str=1460000000000)
 
         candles = []
 
@@ -74,7 +76,7 @@ class Data:
                                                  'num_of_trades'])
 
         self.df = df
-        self.do_ta()
+        self.do_ta(data_series=self.df)
         self.save_to_csv()
 
     def save_to_csv(self):
@@ -137,9 +139,16 @@ class Data:
 
             self.save_to_csv()
 
+    def df_size(self):
+        return self.df.shape[0]
+
+    def tail(self, num=512):
+        return self.df.tail(n=num)
+
+    def head(self, num=512):
+        return self.df.head(n=num)
 
     def do_ta(self, data_series):
-
 
         open    = Series(data_series['open'].astype('float64'))
         high    = Series(data_series['high'].astype('float64'))

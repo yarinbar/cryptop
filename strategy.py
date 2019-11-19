@@ -1,4 +1,8 @@
 from data import Data
+import numpy as np
+import matplotlib.pyplot as plt
+from pandas import Series
+import pandas as pd
 
 
 class Strategy:
@@ -26,7 +30,9 @@ class Strategy:
         if dataset is not None and not isinstance(dataset, Data):
             raise ValueError("dataset should be Data type")
 
-        return self.signal_method(dataset)
+        df = dataset.df
+
+        return self.signal_method(df)
 
     def get_accuracy(self):
 
@@ -50,6 +56,30 @@ class Strategy:
     def _signal_handler(self):
         pass
 
+    def plot_performance(self, dataset):
 
+        x = Series(dataset.df['close_timestamp'].astype('float64'))
+        y = Series(dataset.df['close'].astype('float64'))
 
+        df = dataset.df
 
+        mark_sell = []
+        mark_buy  = []
+
+        ds_size = dataset.df_size()
+
+        for i in range(128, ds_size):
+            new_df = dataset.head(num=i)
+            signal = self.signal_method(new_df)
+
+            # SELL signal
+            if signal < -0.95:
+                mark_sell.append(i)
+
+            # BUY signal
+            if signal > 0.95:
+                mark_buy.append(i)
+
+        print(len(mark_buy))
+        plt.plot(x, y, '-gD', markevery=mark_buy)
+        plt.show()
