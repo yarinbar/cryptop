@@ -25,16 +25,8 @@ class Strategy:
         self._right_calls = 0
         self._wrong_calls = 0
 
-    def signal(self, dataset):
-
-        if dataset is not None and not isinstance(dataset, Data):
-            raise ValueError("dataset should be Data type")
-
-        df = dataset.df
-
-        return self.signal_method(df)
-
-    def get_accuracy(self):
+    @property
+    def accuracy(self):
 
         if self._right_calls == 0 and self._wrong_calls == 0:
             return 50
@@ -46,6 +38,15 @@ class Strategy:
             return 100
 
         return 100 * (self._right_calls / (self._right_calls + self._wrong_calls))
+
+    def signal(self, dataset):
+
+        if dataset is not None and not isinstance(dataset, Data):
+            raise ValueError("dataset should be Data type")
+
+        df = dataset.df
+
+        return self.signal_method(df)
 
     def wrong_call(self):
         self._wrong_calls += 1

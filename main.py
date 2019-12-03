@@ -1,9 +1,7 @@
+
 from settings import *
 from data import Data
 import time
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow import layers
 import ccxt
 import random
 from position import Long, Short
@@ -15,6 +13,7 @@ from pandas import Series
 import pandas as pd
 from strategy import Strategy
 import dataset
+import keras
 
 client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
                     '5m': KLINE_INTERVAL_5MINUTE,
@@ -56,23 +55,30 @@ def mean_deviation(dataset):
     return 0
 
 
-
-
-
-
 if __name__ == '__main__':
 
+    params = ['bollinger_l_indicator',
+              'bollinger_h_indicator',
+              'rsi',
+              'stochastic',
+              'volume',
+              'last_candle_change',
+              'macd_signal',
+              'num_of_trades']
 
-    # medium_term = ['15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d']
-    # for time in medium_term:
-    #     print(time)
-    #     ds = Data("ETHUSDT", time)
 
-    ds = Data("BTCUSDT", '2h')
-    # s = Strategy(name="mean_dev", signal_method=mean_deviation)
-    #
-    # s.plot_performance(dataset=ds)
+    ds = Data("ETHUSDT", '2h')
+    dataset.create_new_dataset(ds, params)
 
-    dataset.create_dataset(ds, ['bollinger_l_indicator', 'bollinger_h_indicator', 'rsi'], future_size=16)
+    X_train, y_train, X_test, y_test = dataset.load_dataset([r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\datasets\btcusdt\1h',
+                                                             r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\datasets\ethusdt\1h',
+                                                             r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\datasets\ltcusdt\1h',
+                                                             r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\datasets\bnbusdt\1h',
+                                                             r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\datasets\xrpusdt\1h'])
+
+    print("X_train.shape:     {}".format(X_train.shape))
+    print("y_train.shape:     {}".format(y_train.shape))
+    print("X_test.shape:      {}".format(X_test.shape))
+    print("y_test.shape:      {}".format(y_test.shape))
 
 

@@ -34,8 +34,8 @@ client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
 class Data:
 
     def __init__(self, pair, interval):
-        self.pair = pair
-        self.symbol = binance_coins[pair]
+        self.pair = pair.upper()
+        self.symbol = binance_coins[self.pair]
         self.interval = interval
 
         try:
@@ -289,3 +289,4 @@ class Candle:
 
         msg += '\n'
         return msg
+

@@ -45,6 +45,9 @@ TAKER_FEE = 0.1 / 100
 # times to update within candle timespan
 UPDATES_FREQ = 50
 
+# how many samples to save for validation
+VAL_SIZE = 2048
+
 interval_milli = {'1m': 1 * 60 * 1000,
                   '5m': 2 * 60 * 1000,
                   '15m': 15 * 60 * 1000,
