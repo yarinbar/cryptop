@@ -1,4 +1,4 @@
-from settings import *
+from config import *
 from position import Position, Long, Short, Scalp
 import asyncio
 import numpy as np

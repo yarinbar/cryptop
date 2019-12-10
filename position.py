@@ -4,7 +4,7 @@ import ccxt
 import time
 import random
 import numpy as np
-from settings import *
+from config import *
 import asyncio
 
 '''

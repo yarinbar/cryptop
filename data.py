@@ -1,4 +1,4 @@
-from settings import *
+from config import *
 import ta
 import os
 from pandas import Series

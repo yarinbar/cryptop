@@ -2,7 +2,7 @@ import random
 import unittest
 from position import Long, Short
 from position import Long, Short
-from settings import *
+from config import *
 
 
 class LongTest(unittest.TestCase):

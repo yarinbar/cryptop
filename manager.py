@@ -1,7 +1,7 @@
 
 from book import PositionBook
 from position import Position
-from settings import *
+from config import *
 
 class PositionManager:
 

@@ -2,7 +2,7 @@ from book import PositionBook
 import numpy as np
 import random
 import pandas as pd
-from settings import *
+from config import *
 from strategy import Strategy
 import time
 import ccxt

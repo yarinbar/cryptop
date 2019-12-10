@@ -2,7 +2,7 @@ import random
 import unittest
 from book import PositionBook
 from position import Long
-from settings import *
+from config import *
 
 params = {'test': True,
           'limit': 2,

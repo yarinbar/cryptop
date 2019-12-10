@@ -1,4 +1,4 @@
-from settings import *
+from config import *
 from data import Data
 import time
 import ccxt
@@ -14,52 +14,6 @@ from strategy import Strategy
 import random
 import matplotlib.pyplot as plt
 
-def determine_y_true(window, current_index):
-
-    good_change  = 6
-    bad_change   = 4
-    change_limit = 0.5
-
-    close  = np.array(window['close'].values)
-    change = np.array(window['last_candle_change'].values)
-    rsi    = np.array(window['rsi'].values)
-
-    current_change = float(change[current_index])
-    current_close  = float(close[current_index])
-    current_rsi    = float(rsi[current_index])
-
-    future = close[current_index:].astype('float32')
-
-    max_close = float(np.amax(future))
-    min_close = float(np.amin(future))
-
-    max_change = ((max_close - current_close) / current_close) * 100
-    min_change = ((min_close - current_close) / current_close) * 100
-
-    if max_change > good_change and min_change > -bad_change and current_rsi < 30:
-        return 1
-
-    if min_change < -good_change and max_change < bad_change and current_rsi > 70:
-        return -1
-
-    return 0
-
-
-def create_dir(pair, interval):
-
-    script_dir = os.path.dirname(__file__)
-    rel_path = 'datasets/{}/{}'.format(pair.lower(), interval.lower())
-    abs_backups_path = os.path.join(script_dir, rel_path)
-
-    buy_path = os.path.join(abs_backups_path, 'buy')
-    hold_path = os.path.join(abs_backups_path, 'hold')
-    sell_path = os.path.join(abs_backups_path, 'sell')
-
-    if not os.path.exists(abs_backups_path):
-        os.makedirs(abs_backups_path)
-        os.makedirs(buy_path)
-        os.makedirs(hold_path)
-        os.makedirs(sell_path)
 
 def save_to_dir(l, dir):
 
@@ -125,7 +79,7 @@ def create_new_dataset(data, params, past_size=128, future_size=32):
     sell = []
 
     # for each row
-    for i in range(256, iterations):
+    for i in range(512, iterations):
 
         past   = df.iloc[i:past_size + i]
         future = df.iloc[past_size + i:past_size + future_size + i]
