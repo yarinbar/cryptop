@@ -54,6 +54,8 @@ There you will find all kinds of settings that changes the behavior of your bot.
     3. waiting to be closed - after buying, closing means selling it back to the base currency. These orders are either partially filled or not filled at all.
     4. closed - only fully filled selling positions are closed positions
 
+Using the `update_positions` method, the bot traverses through all lists (except the closed list) and updates each position from the api. If a change happened that requires a position to change lists - this is where it happens.
+Using the bot's interface, you can order it to open a position or close an open position.
 
 ## Built With
 
