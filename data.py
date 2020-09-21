@@ -75,9 +75,7 @@ class Data:
 
     def save_to_csv(self):
         try:
-            self.df.to_csv(r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\data\{}_{}.csv'.format(self.pair,
-                                                                                                             self.interval),
-                           header=True)
+            self.df.to_csv(r'YOUR_PATH\data\{}_{}.csv'.format(self.pair, self.interval), header=True)
         except Exception as e:
             print(e)
 
