@@ -36,7 +36,7 @@ There you will find all kinds of settings that changes the behavior of your bot.
 
 **position.py**
 
-1. Position - a class that manages an existing position. A position is created inactive and has to be opened in order to be activated. Since a position can be partially filled, canceled or closed in a blink of an eye, the method update position handles those scenarios. A stop-loss can be placed as well as maximal time the order can stay open. 
+1. Position - a class that manages an existing position. A position is created inactive and has to be opened in order to be activated. Since a position can be partially filled, canceled or closed in a blink of an eye, the method `update position` handles those scenarios and ensures the bot is aware of the true status of each position. A stop-loss can be placed as well as maximal time the order can stay open. 
 
 
 **startegy.py - not done**
