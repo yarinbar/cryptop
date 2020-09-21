@@ -47,10 +47,12 @@ There you will find all kinds of settings that changes the behavior of your bot.
 **bot.py - not done**
 
 1. Bot - one bot can handle one pair & interval only. It gets a list of strategies and a method `startegy_handler` which can decide which startegy to employ (ie - for quiet days mean reversion and for volatile days golden cross strategy). Each bot has 4 lists of positions:
-  1. waiting to be opened - orders that are waiting to be filled
-  2. open positions - partially or fully filled positions
-  3. waiting to be closed - after buying, closing means selling it back to the base currency. These orders are either partially filled or not filled at all.
-  4. closed - only fully filled selling positions are closed positions
+
+
+    1. waiting to be opened - orders that are waiting to be filled
+    2. open positions - partially or fully filled positions
+    3. waiting to be closed - after buying, closing means selling it back to the base currency. These orders are either partially filled or not filled at all.
+    4. closed - only fully filled selling positions are closed positions
 
 
 ## Built With
