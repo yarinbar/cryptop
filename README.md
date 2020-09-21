@@ -1,6 +1,8 @@
 
 # Cryptop - A framework to manage positions using algorithmic trading
 
+This library is a work in progress, and it is **not** finished yet.
+
 Cryptop is a framework that interacts with `Binance` using a strategy you come up with and runs it. Cryptop will post orders, calculate returns and sync with your trading account all according to your strategy.
 
 ### Prerequisites
@@ -18,52 +20,51 @@ ta-lib
 ```
 
 
-### Break down into end to end tests
+### Components
 
-Explain what these tests test and why
+**dataset.py**
 
-```
-Give an example
-```
+1. Dataset - a class that contains the candle information from `since` date until the limit (depends on the api of `binance` as well). This class will also take care of the TA for you as it happens automatically when created. Use the `plot` method to plot the dataset into an OHLCV graph.
 
-### And coding style tests
+2. Data - The `Data` class is broader and manages updates to existing datasets and saves it to a convenient `csv` file in the "data directory.
 
-Explain what these tests test and why
 
-```
-Give an example
-```
+**settings.py**
 
-## Deployment
+There you will find all kinds of settings that changes the behavior of your bot.
 
-Add additional notes about how to deploy this on a live system
+
+**position.py**
+
+1. Position - a class that manages an existing position. A position is created inactive and has to be opened in order to be activated. Since a position can be partially filled, canceled or closed in a blink of an eye, the method update position handles those scenarios. A stop-loss can be placed as well as maximal time the order can stay open. 
+
+
+**startegy.py - not done**
+
+1. Strategy - has a name a signaling method and a signal handler. The signal of the strategy is produces based on the dataset that is passed to the method. The signal handler can use the signal handler to determine what to do with the signal (for example the signal can be `buy` where as there is no money available to the bot to spend, in this case the handler can ignore the signal).
+
+
+**bot.py - not done**
+
+1. Bot - one bot can handle one pair & interval only. It gets a list of strategies and a method `startegy_handler` which can decide which startegy to employ (ie - for quiet days mean reversion and for volatile days golden cross strategy). Each bot has 4 lists of positions:
+  1. waiting to be opened - orders that are waiting to be filled
+  2. open positions - partially or fully filled positions
+  3. waiting to be closed - after buying, closing means selling it back to the base currency. These orders are either partially filled or not filled at all.
+  4. closed - only fully filled selling positions are closed positions
+
 
 ## Built With
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [ccxt](https://github.com/ccxt/ccxt) - for the brokerage api
+* [ta](https://github.com/bukosabino/ta) - Tenchnical analysis tool
 
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
 
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
+* **Yarin Bar**
 
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
