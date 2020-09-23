@@ -1,3 +1,4 @@
+
 from data import Data
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,39 +6,37 @@ from pandas import Series
 import pandas as pd
 
 
+
 class Strategy:
 
-    def __init__(self, name, signal_method):
+    def __init__(self, name, signal_method, signal_handler):
+        """
+        :param name: strategy name str
+        :param signal_method: gets candle and params, returns double [-1, 1]
+        :param signal_handler: gets bot and signal returns dictionary:
 
-        if type(name) is not str:
-            raise ValueError("strategy name must be a string")
+        packet = {"decision":       1           // -1, 0, 1,
+                  "price":          ?           // float
+                  "amount":         1           // float
+                  "target_price":   ?           // float
+                  "stop_loss":      ?           // float
+                  "date_due":       ??          // date in milliseconds
+                  "position":       [??]}       // list of Position type
 
-        if len(name) < 3:
-            raise ValueError("name must be at least 3 char long")
+        """
 
-        if signal_method is None:
-            raise ValueError("signal method is a must argument")
-
-        self.name = name.lower()
-
+        self.name = name
         self.signal_method = signal_method
+        self.signal_handler = signal_handler
 
         self._right_calls = 0
         self._wrong_calls = 0
 
-    @property
-    def accuracy(self):
 
-        if self._right_calls == 0 and self._wrong_calls == 0:
-            return 50
 
-        if self._right_calls == 0:
-            return 0
-
-        if self._wrong_calls == 0:
-            return 100
-
-        return 100 * (self._right_calls / (self._right_calls + self._wrong_calls))
+    def update_signal(self, new_signal_method):
+        self.old_signal_methods.append(self.signal_method)
+        self.signal_method = new_signal_method
 
     def signal(self, dataset):
 
@@ -49,13 +48,11 @@ class Strategy:
         return self.signal_method(df)
 
     def wrong_call(self):
-        self._wrong_calls += 1
+        self.__wrong += 1
 
     def right_call(self):
-        self._right_calls += 1
+        self.__right += 1
 
-    def _signal_handler(self):
-        pass
 
     def plot_performance(self, dataset):
 
@@ -77,6 +74,7 @@ class Strategy:
             if signal < -0.95:
                 mark_sell.append(i)
 
+
             # BUY signal
             if signal > 0.95:
                 mark_buy.append(i)
@@ -84,3 +82,11 @@ class Strategy:
         print(len(mark_buy))
         plt.plot(x, y, '-gD', markevery=mark_buy)
         plt.show()
+        
+    def get_accuracy(self):
+        try:
+            accuracy = 100 * (self.__right / (self.__right + self.__wrong))
+        except ZeroDivisionError:
+            return 0
+
+        return accuracy
