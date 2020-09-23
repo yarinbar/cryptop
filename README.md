@@ -1,4 +1,5 @@
 
+
 # Cryptop - A framework to manage positions using algorithmic trading
 
 This library is a work in progress, and it is **not** finished yet.

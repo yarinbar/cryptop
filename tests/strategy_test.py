@@ -2,8 +2,9 @@
 import unittest
 from strategy import Strategy
 from random import uniform
+from data import Data
 
-def mean_deviation(ticker, dataset):
+def mean_deviation(dataset):
     return uniform(-1, 1)
 
 class StrategyTest(unittest.TestCase):
@@ -30,8 +31,10 @@ class StrategyTest(unittest.TestCase):
 
         maximum = -1
         minimal = 1
+
+        ds = Data("ETHUSDT", '1h')
         for i in range(100000):
-            signal = strat.signal(current_ticker={})
+            signal = strat.signal(dataset=ds)
             self.assertLess(signal, 1)
             self.assertGreater(signal, -1)
 

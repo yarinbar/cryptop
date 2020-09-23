@@ -1,169 +1,73 @@
-from settings import *
-from data import Data
-import time
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow import layers
-import ccxt
-import random
-from position import Long, Short
+
+from config import *
+import sys
 import numpy as np
-import pickle
-import os
 
-client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
-                    '5m': KLINE_INTERVAL_5MINUTE,
-                    '15m': KLINE_INTERVAL_15MINUTE,
-                    '30m': KLINE_INTERVAL_30MINUTE,
-                    '1h': KLINE_INTERVAL_1HOUR,
-                    '2h': KLINE_INTERVAL_2HOUR,
-                    '4h': KLINE_INTERVAL_4HOUR,
-                    '6h': KLINE_INTERVAL_6HOUR,
-                    '12h': KLINE_INTERVAL_12HOUR,
-                    '1d': KLINE_INTERVAL_1DAY,
-                    '3d': KLINE_INTERVAL_3DAY,
-                    '1w': KLINE_INTERVAL_1WEEK}
+sys.path.append(DS_DIR)
+sys.path.append(MODEL_DIR)
+
+import ds_manager
+from model_manager import PredModel
+from data import Data
 
 
-def position_unit_test():
-    p1 = Long(pair='ETHUSDT')
-    p2 = Short(pair='ETHBTC')
 
-    test_dict = {'test': True}
+def determine_y_true(window, current_index):
 
-    # should do nothing
-    p1.update()
-    p2.update()
+    good_change  = 6
+    bad_change   = 4
+    change_limit = 0.5
 
-    assert p1.status == EMPTY and p2.status == EMPTY
+    close  = np.array(window['close'].values)
+    change = np.array(window['last_candle_change'].values)
+    rsi    = np.array(window['rsi'].values)
 
-    # should fail
-    assert p1.close(params=test_dict) == -1
-    assert p2.close(params=test_dict) == -1
+    current_change = float(change[current_index])
+    current_close  = float(close[current_index])
+    current_rsi    = float(rsi[current_index])
 
-    # should fail because long target >= limit
-    assert p1.open_limit(amount=1, limit=230, target_price=200, stop_loss=190, params=test_dict) == -1
+    future = close[current_index:].astype('float32')
 
-    # should fail because short limit >= target
-    assert p2.open_limit(amount=1, limit=210, target_price=220, stop_loss=190, params=test_dict) == -1
+    max_close = float(np.amax(future))
+    min_close = float(np.amin(future))
 
-    # succeed
-    assert p1.open_limit(amount=1, limit=230, target_price=250, stop_loss=190, params=test_dict) == 0
-    assert p2.open_limit(amount=1, limit=200, target_price=190, stop_loss=250, params=test_dict) == 0
+    max_change = ((max_close - current_close) / current_close) * 100
+    min_change = ((min_close - current_close) / current_close) * 100
 
-    while p1.status != OPEN or p2.status != OPEN:
-        p1.update()
-        p2.update()
+    if max_change > good_change and min_change > -bad_change and current_rsi < 30:
+        return 1
 
-    assert p1.is_secured
-    assert p2.is_secured
-
-    assert p1['open']['status'] == 'closed'
-    assert p2['open']['status'] == 'closed'
-
-    assert p1.expose() == 0
-    assert p2.expose() == 0
-
-    assert not p1.is_secured
-    assert not p2.is_secured
-
-    # p1 open price = 230
-    # p2 open price = 200
-    # should fail because stoploss is bigger than open price
-    assert p1.secure(stop_loss=231, target_price=250, params=test_dict) == -1
-    assert p2.secure(stop_loss=220, target_price=212, params=test_dict) == -1
-
-    assert p1.secure(stop_loss=225, target_price=235, params=test_dict) == 0
-    assert p2.secure(stop_loss=205, target_price=195, params=test_dict) == 0
-
-    assert p1.is_secured and p2.is_secured
-
-    assert p1.close(price=240, params=test_dict) == 0
-    assert p2.close(price=400, params=test_dict) == 0
-
-    test_dict['price'] = 230
-
-    assert p1.open_market(amount=1, target_price=220, stop_loss=220, params=test_dict) == -1
-    assert p2.open_market(amount=1, target_price=220, stop_loss=220, params=test_dict) == -1
-
-    assert p1.open_market(amount=1, target_price=240, stop_loss=290, params=test_dict) == -1
-    assert p2.open_market(amount=1, target_price=240, stop_loss=220, params=test_dict) == -1
-
-    assert p1.get_profit() == 10 - p1.get_fee()
-    assert p2.get_profit() == - 1 / 2
-
-    assert 4.1 <= p1.get_profit_percent() <= 4.15
-    assert p2.get_profit_percent() == -50
-
-    assert p2.get_profit_percent(current_price=50) == -50
-
-    assert p1['stop_loss'] is None and p1['take_profit'] is None
-    assert p2['stop_loss'] is None and p2['take_profit'] is None
-
-candles = {'rsi': 0, 'macd': 0, 'volume': 0}
-
-def build_model():
-    model = keras.Sequential([layers.Dense(64, activation=tf.nn.relu, input_shape=[len(candles) * 10]),
-                              layers.Dense(64, activation=tf.nn.relu),
-                              layers.Dense(1)])
-
-def move_to(key, src, dest):
-    if type(src) != dict or type(dest) != dict:
+    if min_change < -good_change and max_change < bad_change and current_rsi > 70:
         return -1
-
-    try:
-        tmp = src[key]
-        del src[key]
-        dest[key] = tmp
-    except Exception as e:
-        pass
 
     return 0
 
-def get_size(dict1):
-
-    sum = 0
-    for key, booklet in dict1.items():
-        sum += len(booklet)
-
-    return sum
-
-
-class A:
-    def __init__(self, d):
-        self.p = d['p']
-        self.d = d
 
 if __name__ == '__main__':
 
-    d = {"lol": 4}
+    params = ['bollinger_l_indicator',
+              'bollinger_h_indicator',
+              'rsi',
+              'stochastic',
+              'volume',
+              'last_candle_change',
+              'macd_signal',
+              'num_of_trades']
 
+    train_list = [Data('btcusdt', '1h'),
+                  Data('ethbtc', '2h'),
+                  Data('ltcusdt', '1h'),
+                  Data('bnbusdt', '1h'),
+                  Data('xrpusdt', '1h')]
 
+    val_list   = [Data('ethusdt', '1h')]
 
+    ds_path = ds_manager.create_dataset('8_params', params, train_list, val_list, determine_y_true)
 
-    for i in range(1, 100):
+    X_train, y_train, X_test, y_test = ds_manager.load_dataset(ds_path)
 
-        script_dir = os.path.dirname(__file__)
-        rel_path = 'bot_backups/{0}_{1}.backup.pickle'.format(int(time.time()), 'lol')
-        abs_file_path = os.path.join(script_dir, rel_path)
+    my_model = PredModel('my_first', ds_path, 1024)
 
-        pickle.dump(d,
-                    open(abs_file_path, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-
-        folder_path = os.path.dirname(__file__) + '/bot_backups/'
-        l = os.listdir(folder_path)
-        backups = [name for name in l if 'lol' in name]
-        backups.sort()
-
-        if len(backups) > 10:
-            rel_path = 'bot_backups/{}'.format(backups[0])
-            abs_file_path = os.path.join(script_dir, rel_path)
-            os.remove(abs_file_path)
-
-        time.sleep(1)
-
-
-
+    my_model.fit()
 
 

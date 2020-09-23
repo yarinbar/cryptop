@@ -1,7 +1,7 @@
 
 from book import PositionBook
 from position import Position
-from settings import *
+from config import *
 
 class PositionManager:
 
@@ -50,8 +50,8 @@ class AssetManager:
         self.pair = pair
         self.symbol = binance_coins[pair]
 
-        words = self.symbol.split('/')
-        self.base = words[0]
-        self.quote = words[1]
+        whole_pair = self.symbol.split('/')
+        self.base = whole_pair[0]
+        self.quote = whole_pair[1]
 
         self.pos_book = PositionBook(pair=pair)

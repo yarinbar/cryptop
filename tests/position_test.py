@@ -2,7 +2,7 @@ import random
 import unittest
 from position import Long, Short
 from position import Long, Short
-from settings import *
+from config import *
 
 
 class LongTest(unittest.TestCase):
@@ -140,11 +140,11 @@ class LongTest(unittest.TestCase):
             long1.update()
 
         # can't close without limit
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             long1.close(close_params={})
 
-        self.assertEqual(long1.close(close_params={'limit': 4}), 0)
-        self.assertEqual(long1.close(close_params={'limit': 4}), -1)
+        self.assertEqual(long1.close(limit=4), 0)
+        self.assertEqual(long1.close(limit=4), -1)
 
         test1 = False
         test2 = False
@@ -155,7 +155,7 @@ class LongTest(unittest.TestCase):
             long2.open()
 
             if long2.status == WAIT_OPEN:
-                res = long2.close(close_params={'limit': 4})
+                res = long2.close(limit=4)
 
                 if res == 0 and not test1:
                     # after closing waiting to open position it cancels instead
@@ -302,8 +302,8 @@ class LongTest(unittest.TestCase):
         long1 = Long(pair='ETHUSDT', params=params)
         long1.open()
 
-        self.assertAlmostEqual(long1.get_profit(3), 1)
-        self.assertAlmostEqual(long1.get_profit(1), -1)
+        self.assertAlmostEqual(long1.get_profit(3), 0.995)
+        self.assertAlmostEqual(long1.get_profit(1), -1.005)
 
         while long1.status != OPEN:
             long1.update()
@@ -328,7 +328,7 @@ class LongTest(unittest.TestCase):
         long1 = Long(pair='ETHUSDT', params=params)
         long1.open()
 
-        self.assertAlmostEqual(long1.get_profit(3), 1)
+        self.assertAlmostEqual(long1.get_profit(3), 0.995)
         self.assertAlmostEqual(long1.get_profit(1), -1)
 
         while long1.status != OPEN:
@@ -373,5 +373,5 @@ class LongTest(unittest.TestCase):
 
         self.assertAlmostEqual(long1.get_profit_percent(10), 399.4)
 
-        long1.close(1.5)
+        long1.close(limit=5)
         self.assertAlmostEqual(long1.get_profit_percent(10), -25.175)

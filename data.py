@@ -1,5 +1,6 @@
-from settings import *
+from config import *
 import ta
+import os
 from pandas import Series
 import pandas as pd
 import numpy as np
@@ -33,23 +34,28 @@ client_intervals = {'1m': KLINE_INTERVAL_1MINUTE,
 class Data:
 
     def __init__(self, pair, interval):
-        self.pair = pair
-        self.symbol = binance_coins[pair]
+        self.pair = pair.upper()
+        self.symbol = binance_coins[self.pair]
         self.interval = interval
 
         try:
-            self.df = pd.read_csv(r'C:\Users\Yarin\Documents\Yarin\Crypto\Trading_Bot\bot_v2\data\{}_{}.csv'.format(self.pair,
-                                                                                                                    self.interval), index_col=0)
+
+            script_dir = os.path.dirname(__file__)
+            rel_path = 'data/{}_{}.csv'.format(self.pair, self.interval)
+            abs_backups_path = os.path.join(script_dir, rel_path)
+
+            self.df = pd.read_csv(abs_backups_path, index_col=0)
             self.update_dataset()
-            self.do_ta()
 
         except FileNotFoundError:
             self.create_df()
 
     def create_df(self):
+
+        # 1460000000000 - Thu Apr 07 2016 03:33:20
         data = binance_client.get_historical_klines_generator(symbol=self.pair,
                                                               interval=self.interval,
-                                                              start_str="1000 day ago UTC")
+                                                              start_str=1460000000000)
 
         candles = []
 
@@ -70,12 +76,19 @@ class Data:
                                                  'num_of_trades'])
 
         self.df = df
-        self.do_ta()
+        self.do_ta(data_series=self.df)
         self.save_to_csv()
 
     def save_to_csv(self):
         try:
-            self.df.to_csv(r'YOUR_PATH\data\{}_{}.csv'.format(self.pair, self.interval), header=True)
+
+            script_dir = os.path.dirname(__file__)
+            rel_path = 'data/{}_{}.csv'.format(self.pair, self.interval)
+            abs_backups_path = os.path.join(script_dir, rel_path)
+
+            self.df.to_csv(abs_backups_path, header=True)
+
+
         except Exception as e:
             print(e)
 
@@ -112,19 +125,36 @@ class Data:
                                                       'taker_quote_volume',
                                                       'num_of_trades'])
 
-            new = self.df.append(df2, ignore_index=True, sort=True)
+            padding = 1000
+
+            tmp = self.df.tail(padding)
+            tmp = tmp.append(df2, ignore_index=True, sort=True)
+
+            new = self.do_ta(data_series=tmp)
+
+            # ignore old entries
+            new = new.tail(candles_missed)
+
+            new = self.df.append(new, ignore_index=True, sort=True)
             self.df = new
-            self.do_ta()
+
             self.save_to_csv()
 
-    def do_ta(self):
+    def df_size(self):
+        return self.df.shape[0]
 
-        open = Series(self.df['open'].values).astype('float64')
-        high = Series(self.df['high'].values).astype('float64')
-        low = Series(self.df['low'].values).astype('float64')
-        close = Series(self.df['close'].values).astype('float64')
+    def tail(self, num=512):
+        return self.df.tail(n=num)
 
-        print(self.interval)
+    def head(self, num=512):
+        return self.df.head(n=num)
+
+    def do_ta(self, data_series):
+
+        open    = Series(data_series['open'].astype('float64'))
+        high    = Series(data_series['high'].astype('float64'))
+        low     = Series(data_series['low'].astype('float64'))
+        close   = Series(data_series['close'].astype('float64'))
 
         #      Trend
         # ----------------
@@ -135,20 +165,20 @@ class Data:
         macd_diff = ta.macd_diff(close=close, n_fast=12, n_slow=26, n_sign=9)
         macd_signal = ta.macd_signal(close=close, n_fast=12, n_slow=26, n_sign=9)
 
-        self.df['ema30'] = ema30
-        self.df['ema50'] = ema50
-        self.df['ema100'] = ema100
-        self.df['ema200'] = ema200
-        self.df['macd_diff'] = macd_diff
-        self.df['macd_signal'] = macd_signal
+        data_series['ema30']         = ema30
+        data_series['ema50']         = ema50
+        data_series['ema100']        = ema100
+        data_series['ema200']        = ema200
+        data_series['macd_diff']     = macd_diff
+        data_series['macd_signal']   = macd_signal
 
         #     Momentum
         # ----------------
         rsi = ta.rsi(close=close)
         stochastic = ta.stoch(high=high, low=low, close=close)
 
-        self.df['rsi'] = rsi
-        self.df['stochastic'] = stochastic
+        data_series['rsi']          = rsi
+        data_series['stochastic']   = stochastic
 
         #    Volatility
         # ----------------
@@ -157,12 +187,13 @@ class Data:
         bollinger_h_indicator = ta.bollinger_hband_indicator(close=close)
         bollinger_l_indicator = ta.bollinger_lband_indicator(close=close)
 
-        self.df['bollinger_h'] = bollinger_h
-        self.df['bollinger_l'] = bollinger_l
-        self.df['bollinger_h_indicator'] = bollinger_h_indicator
-        self.df['bollinger_l_indicator'] = bollinger_l_indicator
+        data_series['bollinger_h']              = bollinger_h
+        data_series['bollinger_l']              = bollinger_l
+        data_series['bollinger_h_indicator']    = bollinger_h_indicator
+        data_series['bollinger_l_indicator']    = bollinger_l_indicator
+        data_series['last_candle_change']       = self.lcc(close=close)
 
-        self.save_to_csv()
+        return data_series
 
     def get_next_candle(self):
         return self.df['close_timestamp'].values[-1] + 1
@@ -221,6 +252,23 @@ class Data:
         plt.show()
         self.save_to_csv()
 
+    @staticmethod
+    def lcc(close):
+
+        """
+        calculates the previous change in percentages
+        :param close: Series
+        :return: Series
+        """
+
+        np_close = np.array(close)
+        np_close2 = np_close.copy()
+        np_close = np.append(np_close, np_close[-1])
+        np_close2 = np.insert(np_close2, 0, np_close[0])
+
+        lcc_np = 100 * ((np_close - np_close2) / np_close2)
+
+        return Series(lcc_np)
 
 class Candle:
     def __init__(self, timestamp, open, close, high, low, volume, interval):
@@ -242,3 +290,4 @@ class Candle:
 
         msg += '\n'
         return msg
+
