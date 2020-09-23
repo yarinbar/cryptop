@@ -32,7 +32,7 @@ PositionBook - contains a **single** pair of coins and a 4 lists of positions:
 The bot checks the status of a position by fetching it using the unique `position_id` which you get after opening a position. To prevent the position book from being not up to date, there is a `sync` method that checks each position and updates the status if needed. All of the opening and closing of positions is done only through the book. It is also possible to close positions in bulk by a condition (ie all positions that are older than 24 hours, or all position which has value under 400$).
 
 
-**bot.py - not done**
+**bot.py**
 
 Bot - Each bot has a name, stategy, pair (only one), allowance (to prevent overspending), a position book and data to work with. A bot operates soley by the strategy it is being given. This strategy tells it when to buy and sell. (Not done yet)
 
@@ -66,9 +66,9 @@ Long - a position where the price of an asset is supposed to go up thus you open
 Short - a position where the price of an asset is supposed to go down thus you open it by selling the asset and buying later (hopefully at a lower price).
 
 
-**startegy.py - not done**
+**startegy.py**
 
-Strategy - has a name a signaling method and a signal handler. The signal of the strategy is produces based on the dataset that is passed to the method. The signal handler can use the signal handler to determine what to do with the signal (for example the signal can be `buy` where as there is no money available to the bot to spend, in this case the handler can ignore the signal).
+Strategy - has a name a signaling method and a signal handler. The signal of the strategy is produces based on the dataset that is passed to the method. The signal handler can use the signal handler to determine what to do with the signal (for example the signal can be `buy` where as there is no money available to the bot to spend, in this case the handler can ignore the signal). It's important to mention that a strategy can use a neural network model to generate signals. 
 
 
 ## Testing
@@ -93,7 +93,7 @@ This library is a work in progress, and it is **not** finished yet.
 
 ## Authors
 
-* **Yarin Bar**
+* **Yarin Bar - Technion, Israel Institute of Technology**
 
 
 ## License
